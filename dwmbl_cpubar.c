@@ -30,8 +30,8 @@ struct {
 	int *idleTimes;
 } coreStats;
 
-void showTotalCPUTime();
-void getNewCoreIdleTime(void);
+void showTotalCPUTime(void);
+void showVisualCores(void);
 char *getLine(FILE *fp);
 char *getWord(char *string, int wordIdx);
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	showTotalCPUTime();
-
+	showVisualCores();
 
 
 	return 0;
@@ -57,8 +57,8 @@ void showTotalCPUTime()
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "r+");
 	FILE *uptimeFile = fopen("/proc/uptime", "r");
-	double idleTimeDif;
-	double totalTimeDif;
+	double oldTimeTotal, oldIdleTotal;
+	double currTimeTotal, currIdleTotal;
 
 	if (cache == (FILE *)NULL) {
 		cache = fopen("/tmp/cpubarcache", "w");
@@ -68,26 +68,21 @@ void showTotalCPUTime()
 		return;
 	}
 
-	getLine(uptimeFile);
-	totalTimeDif = atof(getWord(line, 0));
-	idleTimeDif = atof(getWord(line, 1));
-
-	getLine(cache);
-	rewind(cache);
-	fprintf(cache, "%f %f\n", totalTimeDif, idleTimeDif);
-	totalTimeDif -= atof(getWord(line, 0));
-	idleTimeDif -= atof(getWord(line, 1));
-
+	fscanf(uptimeFile, "%lf %lf\n", &oldTimeTotal, &oldIdleTotal);
 	fclose(uptimeFile);
+
+	fscanf(cache, "%lf %lf", &currTimeTotal, &currIdleTotal);
+	rewind(cache);
+	fprintf(cache, "%f %f\n", oldTimeTotal, oldIdleTotal);
 	fclose(cache);
 
-	printf("CPU: %.2f%%\n", 100.0 - 100.0 * (idleTimeDif / (totalTimeDif * (double)coreCount)));
+	printf("CPU: %.2f%%\n", 100.0 - 100.0 * ((currIdleTotal - oldIdleTotal) / ((currTimeTotal - oldTimeTotal) * (double)coreCount)));
 }
 
 
-void getNewCoreIdleTime()
+void showVisualCores()
 {
-	
+
 }
 
 
