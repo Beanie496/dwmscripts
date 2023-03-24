@@ -8,6 +8,7 @@
  * Also, I prefer writing C than bash scripting.
  */
 #include <ctype.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -19,6 +20,7 @@
 
 static char line[MAXLINE];
 static char word[MAXWORD];
+static const wchar_t bars[] = { 0x0020, 0x2581, 0x2582, 0x2583, 0x2584, 0x2585, 0x2586, 0x2587, 0x2588 };
 static int coreCount;
 static double passedIdleTime;
 
@@ -41,7 +43,11 @@ int main(int argc, char *argv[])
 	// get the relevant CPU bar height and print it
 	// exit
 	coreCount = sysconf(_SC_NPROCESSORS_ONLN);
+	setlocale(LC_ALL, "");
+
 	showTotalCPUTime();
+
+
 
 	return 0;
 }
