@@ -37,10 +37,6 @@ char *getLine(FILE *fp);
 
 int main(int argc, char *argv[])
 {
-	// while the first word starts with 'cpu[num]', get each line of /proc/stat and record the 5th word
-	// for each subsequent entry of the recorded idle times, do the same thing but don't multiply by 100, multiply by 8
-	// get the relevant CPU bar height and print it
-	// exit
 	setlocale(LC_ALL, "");
 	if (getCoreInfo())
 		return 0;
