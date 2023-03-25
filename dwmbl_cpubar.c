@@ -67,11 +67,12 @@ void showTotalCPUTime()
 void showVisualCores()
 {
 	int fraction;
+	int iterations = MIN(coreStats.totalCores, 11);
 	printf(" ");
 	// It breaks if there are 12 or greater consecutive identical wide chars, and
 	// I have 12 cores, so until I fix this issue (probably by patching dwmblocks),
 	// I'll use this as a temporary fix.
-	for (int i = 0; i < MIN(coreStats.totalCores, 11); i++) {
+	for (int i = 0; i < iterations; i++) {
 		fraction = LENGTH(bars) - 1 -
 			(int)(8 * coreStats.idleTimes[i] / coreStats.elapsedTime);
 		// same as before. The idle time diff is sometimes higher than
@@ -80,6 +81,10 @@ void showVisualCores()
 			fraction = 0;
 		printf("%lc", bars[fraction]);
 	}
+	// add placeholder underscores to show the missing cores
+	if (coreStats.totalCores > 11)
+		while (iterations++ < coreStats.totalCores)
+			printf("_");
 	printf("\n");
 }
 
