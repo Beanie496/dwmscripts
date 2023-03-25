@@ -141,27 +141,3 @@ char *getLine(FILE *fp)
 
 	return line;
 }
-
-/*
-char *getWord(char *string, int wordIdx)
-{
-	int currWord = 0;
-	int letter = 0;
-	char *retWord;
-
-	while (string[letter] != EOF && currWord < wordIdx)
-		if (isspace(string[letter++]))
-			currWord++;
-
-	if (string[letter] == EOF || currWord < wordIdx)
-		return NULL;
-
-	retWord = word;
-	// MAXWORD - 1 to give space for the null char
-	while (!isspace(*retWord = string[letter++]) && retWord < &word[MAXWORD - 1])
-		retWord++;
-	*retWord = '\0';
-	
-	return word;
-}
-*/
