@@ -47,16 +47,17 @@ int main(int argc, char *argv[])
 	showTotalCPUTime();
 	showVisualCores();
 
-
 	return 0;
 }
 
 
 void showTotalCPUTime()
 {
-	printf("CPU: %.2f%%", 100.0 - (float)(100 * coreStats.idleTime) /
-			 (float)(coreStats.elapsedTime * coreStats.totalCores)
-			);
+	double fraction = (double)(100 * coreStats.idleTime) / (double)(coreStats.elapsedTime * coreStats.totalCores);
+	// I don't know why, but somwtimes the idle time diff is higher than the elapsed time diff
+	if (fraction > 100.0)
+		fraction = 100.0;
+	printf("CPU: %.2f%%", 100.0 - fraction);
 }
 
 
@@ -66,7 +67,10 @@ void showVisualCores()
 
 	printf(" ");
 	for (int i = 0; i < coreStats.totalCores; i++) {
-		fraction = LENGTH(bars) - 1 - (int)(coreStats.idleTimes[i] * 8 / coreStats.elapsedTime);
+		fraction = LENGTH(bars) - 1 - (int)(8 * coreStats.idleTimes[i] / coreStats.elapsedTime);
+		// same as before. The idle time diff is sometimes higher than the total elapsed time diff.
+		if (fraction < 0)
+			fraction = 0;
 		printf("%lc", bars[fraction]);
 	}
 	printf("\n");
