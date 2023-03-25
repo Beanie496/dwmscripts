@@ -13,21 +13,24 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define MAXLINE     100
-#define MAXWORD     20
-#define todigit(c)  ((c) - '0')
+#define MAXLINE      100
+#define MAXWORD      20
+#define todigit(c)   ((c) - '0')
+#define LENGTH(arr)  (sizeof(arr) / sizeof(arr[0]))
 
 static char line[MAXLINE];
 static const wchar_t bars[] = { 0x0020, 0x2581, 0x2582, 0x2583, 0x2584, 0x2585, 0x2586, 0x2587, 0x2588 };
 
 struct {
 	int totalCores;
+	int elapsedTime;
+	int idleTime;
 	int *idleTimes;
 } coreStats;
 
 // returns the total idle time in clock ticks
 int showTotalCPUTime(void);
-void showVisualCores(int elapsedTime);
+void showVisualCores(void);
 void getCoreInfo(void);
 char *getLine(FILE *fp);
 
@@ -40,10 +43,9 @@ int main(int argc, char *argv[])
 	// exit
 	setlocale(LC_ALL, "");
 	getCoreInfo();
-	int elapsedTime = showTotalCPUTime();
-	if (elapsedTime == 0)
+	if (showTotalCPUTime())
 		return 0;
-	showVisualCores(elapsedTime);
+	showVisualCores();
 
 
 	return 0;
@@ -53,72 +55,77 @@ int main(int argc, char *argv[])
 int showTotalCPUTime()
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "r+");
-	FILE *uptimeFile = fopen("/proc/uptime", "r");
-	double oldTimeTotal, oldIdleTotal;
-	double currTimeTotal, currIdleTotal;
+	int oldElapsed, oldIdle;
 	int tmp[coreStats.totalCores];
 
 	if (cache == (FILE *)NULL) {
 		cache = fopen("/tmp/cpubarcache", "w");
-		fprintf(cache, "%s", getLine(uptimeFile));
+		fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.idleTime);
 		for (int i = 0; i < coreStats.totalCores; i++)
 			fprintf(cache, " %d", coreStats.idleTimes[i]);
 		fclose(cache);
-		fclose(uptimeFile);
-		return 0;
+		return 1;
 	}
 
-	fscanf(uptimeFile, "%lf %lf", &currTimeTotal, &currIdleTotal);
-	fclose(uptimeFile);
-
-	fscanf(cache, "%lf %lf\n", &oldTimeTotal, &oldIdleTotal);
+	fscanf(cache, "%d %d", &oldElapsed, &oldIdle);
 	for (int i = 0; i < coreStats.totalCores; i++)
 		fscanf(cache, "%d", &tmp[i]);
 	rewind(cache);
-	fprintf(cache, "%f %f", currTimeTotal, currIdleTotal);
+	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.idleTime);
 	for (int i = 0; i < coreStats.totalCores; i++)
 		fprintf(cache, " %d", coreStats.idleTimes[i]);
 	fclose(cache);
+
+	coreStats.elapsedTime -= oldElapsed;
+	coreStats.idleTime -= oldIdle;
 	for (int i = 0; i < coreStats.totalCores; i++)
 		coreStats.idleTimes[i] -= tmp[i];
 
-	printf("CPU: %.2f%% ", 100.0 - 100.0 * 
-			((currIdleTotal - oldIdleTotal) /
-			 ((currTimeTotal - oldTimeTotal) * (double)coreStats.totalCores))
+	printf("CPU: %.2f%%", 100.0 - (float)(100 * coreStats.idleTime) /
+			 (float)(coreStats.elapsedTime * coreStats.totalCores)
 			);
 
-	return (int)((currTimeTotal - oldTimeTotal) * sysconf(_SC_CLK_TCK));
+	return 0;
 }
 
 
-void showVisualCores(int elapsedTime)
+void showVisualCores()
 {
 	int fraction;
 
 	printf(" ");
 	for (int i = 0; i < coreStats.totalCores; i++) {
-		fraction = (sizeof(bars) / sizeof(bars[0])) - 1 - (int)(coreStats.idleTimes[i] * 8 / elapsedTime);
-		if (fraction < 0)
-			fraction = 0;
+		fraction = LENGTH(bars) - 1 - (int)(coreStats.idleTimes[i] * 8 / coreStats.elapsedTime);
 		printf("%lc", bars[fraction]);
+		printf("%d", fraction);
 	}
-	printf("\n");
+	printf("END\n");
 }
 
 
 void getCoreInfo()
 {
 	FILE *stats = fopen("/proc/stat", "r");
+	FILE *uptimeFile = fopen("/proc/uptime", "r");
+	double uptime, idle;
+	int ticksPerSec = sysconf(_SC_CLK_TCK);
+
 	coreStats.totalCores = sysconf(_SC_NPROCESSORS_ONLN);
 	coreStats.idleTimes = malloc(sizeof(int *) * coreStats.totalCores);
-
+	// I get the total uptime, the total idle time and the idle time
+	// of each core as close together as possible because the idle time
+	// of some of the cores might increase between getting the uptime
+	// and getting the idle time of that core
+	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
 	// ignore the first line, as that stores the collective core info
 	fscanf(stats, "%*s %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d");
-	
 	for (int i = 0; i < coreStats.totalCores; i++)
 		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d", &coreStats.idleTimes[i]);
-
+	fclose(uptimeFile);
 	fclose(stats);
+
+	coreStats.elapsedTime = uptime * ticksPerSec;
+	coreStats.idleTime = idle * ticksPerSec;
 }
 
 char *getLine(FILE *fp)
