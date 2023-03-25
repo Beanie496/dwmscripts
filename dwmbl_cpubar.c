@@ -15,25 +15,21 @@
 
 #define MAXLINE     100
 #define MAXWORD     20
-#define MAXBUF      50
 #define todigit(c)  ((c) - '0')
 
 static char line[MAXLINE];
-static char word[MAXWORD];
 static const wchar_t bars[] = { 0x0020, 0x2581, 0x2582, 0x2583, 0x2584, 0x2585, 0x2586, 0x2587, 0x2588 };
-static int coreCount;
-static double passedIdleTime;
 
 struct {
 	int totalCores;
-	// every MAXBUF cores, it'll realloc more memory for idleTimes and copy the values over
 	int *idleTimes;
 } coreStats;
 
-void showTotalCPUTime(void);
-void showVisualCores(void);
+// returns the total idle time in clock ticks
+int showTotalCPUTime(void);
+void showVisualCores(int elapsedTime);
+void getCoreInfo(void);
 char *getLine(FILE *fp);
-char *getWord(char *string, int wordIdx);
 
 
 int main(int argc, char *argv[])
@@ -42,49 +38,88 @@ int main(int argc, char *argv[])
 	// for each subsequent entry of the recorded idle times, do the same thing but don't multiply by 100, multiply by 8
 	// get the relevant CPU bar height and print it
 	// exit
-	coreCount = sysconf(_SC_NPROCESSORS_ONLN);
 	setlocale(LC_ALL, "");
-
-	showTotalCPUTime();
-	showVisualCores();
+	getCoreInfo();
+	int elapsedTime = showTotalCPUTime();
+	if (elapsedTime == 0)
+		return 0;
+	showVisualCores(elapsedTime);
 
 
 	return 0;
 }
 
 
-void showTotalCPUTime()
+int showTotalCPUTime()
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "r+");
 	FILE *uptimeFile = fopen("/proc/uptime", "r");
 	double oldTimeTotal, oldIdleTotal;
 	double currTimeTotal, currIdleTotal;
+	int tmp[coreStats.totalCores];
 
 	if (cache == (FILE *)NULL) {
 		cache = fopen("/tmp/cpubarcache", "w");
-		fprintf(cache, "%s\n", getLine(uptimeFile));
+		fprintf(cache, "%s", getLine(uptimeFile));
+		for (int i = 0; i < coreStats.totalCores; i++)
+			fprintf(cache, " %d", coreStats.idleTimes[i]);
 		fclose(cache);
 		fclose(uptimeFile);
-		return;
+		return 0;
 	}
 
-	fscanf(uptimeFile, "%lf %lf\n", &oldTimeTotal, &oldIdleTotal);
+	fscanf(uptimeFile, "%lf %lf", &currTimeTotal, &currIdleTotal);
 	fclose(uptimeFile);
 
-	fscanf(cache, "%lf %lf", &currTimeTotal, &currIdleTotal);
+	fscanf(cache, "%lf %lf\n", &oldTimeTotal, &oldIdleTotal);
+	for (int i = 0; i < coreStats.totalCores; i++)
+		fscanf(cache, "%d", &tmp[i]);
 	rewind(cache);
-	fprintf(cache, "%f %f\n", oldTimeTotal, oldIdleTotal);
+	fprintf(cache, "%f %f", currTimeTotal, currIdleTotal);
+	for (int i = 0; i < coreStats.totalCores; i++)
+		fprintf(cache, " %d", coreStats.idleTimes[i]);
 	fclose(cache);
+	for (int i = 0; i < coreStats.totalCores; i++)
+		coreStats.idleTimes[i] -= tmp[i];
 
-	printf("CPU: %.2f%%\n", 100.0 - 100.0 * ((currIdleTotal - oldIdleTotal) / ((currTimeTotal - oldTimeTotal) * (double)coreCount)));
+	printf("CPU: %.2f%% ", 100.0 - 100.0 * 
+			((currIdleTotal - oldIdleTotal) /
+			 ((currTimeTotal - oldTimeTotal) * (double)coreStats.totalCores))
+			);
+
+	return (int)((currTimeTotal - oldTimeTotal) * sysconf(_SC_CLK_TCK));
 }
 
 
-void showVisualCores()
+void showVisualCores(int elapsedTime)
 {
+	int fraction;
 
+	printf(" ");
+	for (int i = 0; i < coreStats.totalCores; i++) {
+		fraction = (sizeof(bars) / sizeof(bars[0])) - 1 - (int)(coreStats.idleTimes[i] * 8 / elapsedTime);
+		if (fraction < 0)
+			fraction = 0;
+		printf("%lc", bars[fraction]);
+	}
+	printf("\n");
 }
 
+
+void getCoreInfo()
+{
+	FILE *stats = fopen("/proc/stat", "r");
+	coreStats.totalCores = sysconf(_SC_NPROCESSORS_ONLN);
+	coreStats.idleTimes = malloc(sizeof(int *) * coreStats.totalCores);
+
+	// ignore the first line, as that stores the collective core info
+	fscanf(stats, "%*s %*d %*d %*d %*d %*d %*d %*d %*d %*d %*d");
+	
+	for (int i = 0; i < coreStats.totalCores; i++)
+		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d", &coreStats.idleTimes[i]);
+
+	fclose(stats);
+}
 
 char *getLine(FILE *fp)
 {
@@ -97,7 +132,7 @@ char *getLine(FILE *fp)
 	return line;
 }
 
-
+/*
 char *getWord(char *string, int wordIdx)
 {
 	int currWord = 0;
@@ -119,3 +154,4 @@ char *getWord(char *string, int wordIdx)
 	
 	return word;
 }
+*/
