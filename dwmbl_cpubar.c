@@ -118,6 +118,7 @@ int getCoreInfo()
 		fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.idleTime);
 		for (int i = 0; i < cores; i++)
 			fprintf(cache, " %d", coreStats.idleTimes[i]);
+		fprintf(cache, "\n");
 		fclose(cache);
 		return 1;
 	}
@@ -130,6 +131,7 @@ int getCoreInfo()
 	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.idleTime);
 	for (int i = 0; i < cores; i++)
 		fprintf(cache, " %d", coreStats.idleTimes[i]);
+	fprintf(cache, "\n");
 	fclose(cache);
 
 	// get the difference
@@ -137,6 +139,7 @@ int getCoreInfo()
 	coreStats.idleTime -= cacheIdle;
 	for (int i = 0; i < cores; i++) {
 		coreStats.idleTimes[i] -= cachedCoreIdleTimes[i];
+		/*
 		// sometimes the new cache isn't written to properly, resulting in
 		// the whole program breaking until the file is edited by hand
 		// or deleted. This solved that, albeit in a messy way.
@@ -144,6 +147,7 @@ int getCoreInfo()
 			remove("/tmp/cpubarcache");
 			return 1;
 		}
+		*/
 	}
 
 	return 0;
