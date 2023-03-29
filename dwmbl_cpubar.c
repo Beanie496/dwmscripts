@@ -137,18 +137,8 @@ int getCoreInfo()
 	// get the difference
 	coreStats.elapsedTime -= cacheTime;
 	coreStats.idleTime -= cacheIdle;
-	for (int i = 0; i < cores; i++) {
+	for (int i = 0; i < cores; i++)
 		coreStats.idleTimes[i] -= cachedCoreIdleTimes[i];
-		/*
-		// sometimes the new cache isn't written to properly, resulting in
-		// the whole program breaking until the file is edited by hand
-		// or deleted. This solved that, albeit in a messy way.
-		if (coreStats.idleTimes[i] < 0.0) {
-			remove("/tmp/cpubarcache");
-			return 1;
-		}
-		*/
-	}
 
 	return 0;
 }
