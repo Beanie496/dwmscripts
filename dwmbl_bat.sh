@@ -14,15 +14,18 @@ case $status in
 		symbol="⚡"
 		;;
 	"Charging")
-		echo "no" > "$cache"
-		symbol="🔌"
-		if [ $capacity -ge $nearlyfull ]; then
+		if [ "$(cat "$cache")" != "yes" ] && [ $capacity -ge $nearlyfull ]; then
 			dunstify -u low -t 3000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery nearly full" "Battery level above $nearlyfull%"
+			echo "yes" > "$cache"
+		else
+			echo "no" > "$cache"
 		fi
+		symbol="🔌"
 		;;
 	"Discharging")
-		touch "$cache"
-		if [ $capacity -le $criticallylow ]; then
+		if [ $capacity -gt $criticallylow ]; then
+			echo "no" > "$cache"
+		elif [ $capacity -le $criticallylow ]; then
 			dunstify -u critical -t 0 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery very low" "Battery level below $criticallylow%"
 			symbol="❗"
 		elif [ $capacity -le $low ]; then
