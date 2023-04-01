@@ -17,7 +17,7 @@ case $status in
 		echo "no" > "$cache"
 		symbol="🔌"
 		if [ $capacity -ge $nearlyfull ]; then
-			dunstify -u low -t 5000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery nearly full" "Battery level above $nearlyfull%"
+			dunstify -u low -t 3000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery nearly full" "Battery level above $nearlyfull%"
 		fi
 		;;
 	"Discharging")
