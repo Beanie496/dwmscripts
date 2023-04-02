@@ -25,7 +25,7 @@ case $status in
 		symbol="🔌"
 		;;
 	"Discharging")
-		if [ $capacity -gt $criticallylow ]; then
+		if [ $capacity -gt $low ]; then
 			echo "no" > "$cache"
 			symbol="🔋"
 		elif [ $capacity -le $criticallylow ]; then
