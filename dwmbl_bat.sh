@@ -35,13 +35,13 @@ case $status in
 		# a nearly-full battery.
 		if [ $capacity -le $criticallylow ]; then
 			if [ "$(cat "$cache")" -gt $criticallylow ]; then
-				dunstify -u critical -t 0 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery very low" "Battery level below $criticallylow%"
+				dunstify -u critical -t 5000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery very low" "Battery level below $criticallylow%"
 				echo "$criticallylow" > "$cache"
 			fi
 			symbol="❗"
 		elif [ $capacity -le $low ]; then
 			if [ "$(cat "$cache")" -gt "$low" ]; then
-				dunstify -u normal -t 0 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery low" "Battery level below $low%"
+				dunstify -u normal -t 5000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery low" "Battery level below $low%"
 				echo "$low" > "$cache"
 			fi
 			symbol="❗"
