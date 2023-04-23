@@ -2,7 +2,7 @@
 
 muted=$(pactl get-sink-mute @DEFAULT_SINK@ | awk '{ print $2 }')
 volume=$(pactl get-sink-volume @DEFAULT_SINK@ | awk '{ if(NR == 1) print ($5 + $12) / 2 }')
-if [ $muted == "yes" ]; then
+if [ "$muted" = "yes" ]; then
 	echo "🔇 $volume%"
 elif [ $volume -lt 20 ]; then
 	echo "🔈 $volume%"

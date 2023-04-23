@@ -2,7 +2,7 @@
 
 muted=$(pactl get-source-mute @DEFAULT_SOURCE@ | awk '{ print $2 }')
 volume=$(pactl get-source-volume @DEFAULT_SOURCE@ | awk '{ if(NR == 1) print ($5 + $12) / 2 }')
-if [ $muted == "yes" ]; then
+if [ "$muted" = "yes" ]; then
 	echo "🎤 [Muted] $volume%"
 else
 	echo "🎤 $volume%"
