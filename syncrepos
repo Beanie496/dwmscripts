@@ -1,0 +1,16 @@
+#!/bin/sh
+repos="Advent\ Of\ Code dwmblocks misc rewritten\ library\ functions scripts
+Simple\ Minimax\ Chess\ Engine sorts swiss-style\ tourney\ generator"
+cd "/home/Beanie/Coding/repositories"
+for repo in $repos; do
+	if [ "$(echo $repo | tail -c 2)" == "\\" ]; then
+		temp=$temp"${repo%\\} "
+	else
+		temp=$temp"$repo"
+		echo \"$temp\"
+		cd "$temp"
+		git $1
+		cd ..
+		temp=""
+	fi
+done
