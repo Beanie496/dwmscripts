@@ -5,7 +5,7 @@
  * too long and complicated, to the point where I suspected it
  * would starts affecting the number it was trying to measure
  * (since my average CPU use is less than 0.5% usually).
- * Also, I prefer writing C than bash scripting.
+ * Also, I prefer writing C than shell scripting.
  */
 #include <ctype.h>
 #include <locale.h>
@@ -18,12 +18,11 @@
 #define todigit(c)   ((c) - '0')
 #define LENGTH(arr)  (sizeof(arr) / sizeof(arr[0]))
 
-static char line[MAXLINE];
 // this stores 9 characters: a space,
 // then the 8 block elements that go from lower eighth to full block
 static const wchar_t bars[] = { 0x0020, 0x2581, 0x2582, 0x2583, 0x2584, 0x2585, 0x2586, 0x2587, 0x2588 };
 
-struct {
+static struct {
 	int totalCores;
 	int elapsedTime;
 	int idleTime;
@@ -34,8 +33,7 @@ struct {
 void showTotalCPUTime(void);
 void showVisualCores(void);
 int getCoreInfo(void);
-char *getLine(FILE *fp);
-
+void skipOverLine(FILE *fp);
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +48,6 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-
 void showTotalCPUTime()
 {
 	double fraction = (double)(100 * coreStats.idleTime) /
@@ -61,7 +58,6 @@ void showTotalCPUTime()
 		fraction = 100.0;
 	printf("CPU: %.2f%%", 100.0 - fraction);
 }
-
 
 void showVisualCores()
 {
@@ -79,7 +75,6 @@ void showVisualCores()
 	}
 	printf("\n");
 }
-
 
 int getCoreInfo()
 {
@@ -100,14 +95,14 @@ int getCoreInfo()
 	// the total uptime and getting the idle time of it
 	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
 	// ignore the first line, as that stores the collective core info
-	getLine(stats);
+	skipOverLine(stats);
 	// get the idle time of each core (the 5th column)
 	for (int i = 0; i < cores; i++)
 		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d", &coreStats.idleTimes[i]);
 	fclose(uptimeFile);
 	fclose(stats);
 
-	// this doesn't truncate the decimal by the way
+	// this doesn't truncate the decimal
 	coreStats.elapsedTime = uptime * ticksPerSec;
 	coreStats.idleTime = idle * ticksPerSec;
 
@@ -143,16 +138,8 @@ int getCoreInfo()
 	return 0;
 }
 
-
-char *getLine(FILE *fp)
+void skipOverLine(FILE *fp)
 {
-	// this breaks on files that don't end with a newline, but that's
-	// not a problem in linux
-	// (and it doesn't make sense for windows users to use this code)
-	int i = 0;
-	while ((line[i] = fgetc(fp)) != '\n' && i < MAXLINE)
-		i++;
-	line[i] = '\0';
-
-	return line;
+	while (fgetc(fp) != '\n')
+		;
 }
