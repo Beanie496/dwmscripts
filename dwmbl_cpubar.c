@@ -18,22 +18,41 @@
 #define todigit(c)   ((c) - '0')
 #define LENGTH(arr)  (sizeof(arr) / sizeof(arr[0]))
 
-// this stores 9 characters: a space,
-// then the 8 block elements that go from lower eighth to full block
-static const wchar_t bars[] = { 0x0020, 0x2581, 0x2582, 0x2583, 0x2584, 0x2585, 0x2586, 0x2587, 0x2588 };
+static void showTotalCPUTime(void);
+static void showVisualCores(void);
+static void showVisualCore(int core);
+static int getCoreInfo(void);
+static int getIdleAndElapsedTime(void);
+static int getCoreIdleTimes(void);
+static int getCoreIdleTimes(void);
+static int cacheTimes(void);
+static int getCachedElapsedTimeAndIdleTime(int *cacheTime, int *cacheIdle,
+		int cachedCoreIdleTimes[]);
+static void getTimeDiffs(int cacheTime, int cacheIdle,
+		int cachedCoreIdleTimes[]);
+static void skipOverLine(FILE *fp);
+static void coreStats_free(void);
+
+// this stores 9 characters: a space, then the 8 block elements that go from
+// lower eighth to full block
+static const wchar_t bars[] = {
+	0x0020,
+	0x2581,
+	0x2582,
+	0x2583,
+	0x2584,
+	0x2585,
+	0x2586,
+	0x2587,
+	0x2588,
+};
 
 static struct {
 	int totalCores;
 	int elapsedTime;
-	int idleTime;
-	int *idleTimes;
+	int totalIdleTime;
+	int *coreIdleTimes;
 } coreStats;
-
-// returns the total idle time in clock ticks
-void showTotalCPUTime(void);
-void showVisualCores(void);
-int getCoreInfo(void);
-void skipOverLine(FILE *fp);
 
 int main(int argc, char *argv[])
 {
@@ -44,13 +63,14 @@ int main(int argc, char *argv[])
 		return 0;
 	showTotalCPUTime();
 	showVisualCores();
+	coreStats_free();
 
 	return 0;
 }
 
 void showTotalCPUTime()
 {
-	double fraction = (double)(100 * coreStats.idleTime) /
+	double fraction = (double)(100 * coreStats.totalIdleTime) /
 		(double)(coreStats.elapsedTime * coreStats.totalCores);
 	// I don't know why, but somwtimes the idle time diff is higher than
 	// the elapsed time diff
@@ -61,85 +81,131 @@ void showTotalCPUTime()
 
 void showVisualCores()
 {
-	int fraction;
-
 	printf(" ");
-	for (int i = 0; i < coreStats.totalCores; i++) {
-		fraction = LENGTH(bars) - 1 -
-			(int)(8 * coreStats.idleTimes[i] / coreStats.elapsedTime);
-		// same as before. The idle time diff is sometimes higher than
-		// the total elapsed time diff.
-		if (fraction < 0)
-			fraction = 0;
-		printf("%lc", bars[fraction]);
-	}
+	for (int i = 0; i < coreStats.totalCores; i++)
+		showVisualCore(i);
 	printf("\n");
+}
+
+void showVisualCore(int core) {
+	int fraction = LENGTH(bars) - 1 -
+		(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
+	// same as before. The idle time diff is sometimes higher than
+	// the total elapsed time diff.
+	if (fraction < 0)
+		fraction = 0;
+	printf("%lc", bars[fraction]);
 }
 
 int getCoreInfo()
 {
-	FILE *cache = fopen("/tmp/cpubarcache", "r+");
-	FILE *stats = fopen("/proc/stat", "r");
-	FILE *uptimeFile = fopen("/proc/uptime", "r");
-	double uptime, idle;
 	int cacheTime, cacheIdle;
+
+	coreStats.totalCores = sysconf(_SC_NPROCESSORS_ONLN);
+	int cachedCoreIdleTimes[coreStats.totalCores];
+
+	if (getIdleAndElapsedTime())
+		// TODO: enum error codes
+		return 1;
+
+	if (getCoreIdleTimes())
+		return 1;
+
+	// TODO: ew
+	if (getCachedElapsedTimeAndIdleTime(&cacheTime, &cacheIdle,
+				cachedCoreIdleTimes)) {
+		// TODO: move this function call out of this function, as it
+		// doesn't make sense for what the function does
+		cacheTimes();
+		return 1;
+	}
+	cacheTimes();
+	getTimeDiffs(cacheTime, cacheIdle, cachedCoreIdleTimes);
+
+	return 0;
+}
+
+int getIdleAndElapsedTime()
+{
+	double uptime, idle;
 	int ticksPerSec = sysconf(_SC_CLK_TCK);
-	int cores = sysconf(_SC_NPROCESSORS_ONLN);
-	int cachedCoreIdleTimes[cores];
-
-	coreStats.totalCores = cores;
-	coreStats.idleTimes = malloc(sizeof(int *) * cores);
-	// the total uptime, the total idle time and the idle time
-	// of each core are read in as close together as possible because
-	// the idle time of some of the cores might increase between getting
-	// the total uptime and getting the idle time of it
-	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
-	// ignore the first line, as that stores the collective core info
-	skipOverLine(stats);
-	// get the idle time of each core (the 5th column)
-	for (int i = 0; i < cores; i++)
-		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d", &coreStats.idleTimes[i]);
-	fclose(uptimeFile);
-	fclose(stats);
-
-	// this doesn't truncate the decimal
-	coreStats.elapsedTime = uptime * ticksPerSec;
-	coreStats.idleTime = idle * ticksPerSec;
-
-	// if the cache doesn't exist, store the elapsed time, idle time,
-	// and idle time of each core (all in clock ticks)
-	if (cache == (FILE *)NULL) {
-		cache = fopen("/tmp/cpubarcache", "w");
-		fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.idleTime);
-		for (int i = 0; i < cores; i++)
-			fprintf(cache, " %d", coreStats.idleTimes[i]);
-		fprintf(cache, "\n");
-		fclose(cache);
+	FILE *uptimeFile = fopen("/proc/uptime", "r");
+	if (uptimeFile == NULL) {
+		fprintf(stderr, "Error reading from /proc/uptime\n");
 		return 1;
 	}
 
-	// get all the info from the cache before writing in the current info
-	fscanf(cache, "%d %d", &cacheTime, &cacheIdle);
-	for (int i = 0; i < cores; i++)
-		fscanf(cache, "%d", &cachedCoreIdleTimes[i]);
-	rewind(cache);
-	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.idleTime);
-	for (int i = 0; i < cores; i++)
-		fprintf(cache, " %d", coreStats.idleTimes[i]);
+	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
+	fclose(uptimeFile);
+
+	coreStats.elapsedTime = uptime * ticksPerSec;
+	coreStats.totalIdleTime = idle * ticksPerSec;
+
+	return 0;
+}
+
+int getCoreIdleTimes() {
+	FILE *stats = fopen("/proc/stat", "r");
+	if (stats == NULL) {
+		fprintf(stderr, "Error reading from /proc/stat\n");
+		return 1;
+	}
+
+	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.totalCores);
+	// ignore the first line, as that stores the collective core info
+	skipOverLine(stats);
+	// get the idle time of each core (the 5th column)
+	for (int i = 0; i < coreStats.totalCores; i++)
+		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
+				&coreStats.coreIdleTimes[i]);
+	fclose(stats);
+	return 0;
+}
+
+int cacheTimes() {
+	FILE *cache = fopen("/tmp/cpubarcache", "w");
+	if (cache == NULL) {
+		fprintf(stderr, "Error writing to cache\n");
+		return 1;
+	}
+
+	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
+	for (int i = 0; i < coreStats.totalCores; i++)
+		fprintf(cache, " %d", coreStats.coreIdleTimes[i]);
 	fprintf(cache, "\n");
 	fclose(cache);
 
-	// get the difference
-	coreStats.elapsedTime -= cacheTime;
-	coreStats.idleTime -= cacheIdle;
-	for (int i = 0; i < cores; i++)
-		coreStats.idleTimes[i] -= cachedCoreIdleTimes[i];
+	return 0;
+}
+
+int getCachedElapsedTimeAndIdleTime(int *cacheTime, int *cacheIdle,
+		int cachedCoreIdleTimes[]) {
+	FILE *cache = fopen("/tmp/cpubarcache", "r");
+	if (cache == NULL)
+		return 1;
+
+	fscanf(cache, "%d %d", cacheTime, cacheIdle);
+	for (int i = 0; i < coreStats.totalCores; i++)
+		fscanf(cache, "%d", &cachedCoreIdleTimes[i]);
+	fclose(cache);
 
 	return 0;
+}
+
+void getTimeDiffs(int cacheTime, int cacheIdle, int cachedCoreIdleTimes[]) {
+	coreStats.elapsedTime -= cacheTime;
+	coreStats.totalIdleTime -= cacheIdle;
+	for (int i = 0; i < coreStats.totalCores; i++)
+		coreStats.coreIdleTimes[i] -= cachedCoreIdleTimes[i];
 }
 
 void skipOverLine(FILE *fp)
 {
 	while (fgetc(fp) != '\n')
 		;
+}
+
+void coreStats_free()
+{
+	free(coreStats.coreIdleTimes);
 }
