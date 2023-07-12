@@ -74,8 +74,6 @@ int main(int argc, char *argv[])
 	switch (getCacheInfo()) {
 		case SUCCESS:
 			break;
-		case ERR_CACHE_CANNOT_BE_OPENED:
-			return 1;
 		case ERR_CACHE_DOES_NOT_EXIST:
 			cacheTimes();
 			return 0;
@@ -83,7 +81,15 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "Unknown error code\n");
 			return 1;
 	}
-	cacheTimes();
+	switch (cacheTimes()) {
+		case SUCCESS:
+			break;
+		case ERR_CACHE_CANNOT_BE_OPENED:
+			return 1;
+		default:
+			fprintf(stderr, "Unknown error code\n");
+			return 1;
+	}
 	getTimeDiffs();
 	showTotalCPUTime();
 	showVisualCores();
