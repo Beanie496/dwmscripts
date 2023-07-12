@@ -29,15 +29,14 @@ static void showTotalCPUTime(void);
 static void showVisualCores(void);
 static void showVisualCore(int core);
 static int getCoreInfo(void);
-static int getIdleAndElapsedTime(void);
+static int getUptimeAndIdleTime(void);
 static int getCoreIdleTimes(void);
 static int getCoreIdleTimes(void);
 static int cacheTimes(void);
-static int getCachedElapsedTimeAndIdleTime(int *cacheTime, int *cacheIdle,
-		int cachedCoreIdleTimes[]);
-static void getTimeDiffs(int cacheTime, int cacheIdle,
-		int cachedCoreIdleTimes[]);
+static int getCachedElapsedTimeAndIdleTime(void);
+static void getTimeDiffs(void);
 static void skipOverLine(FILE *fp);
+static void cacheInfo_free(void);
 static void coreStats_free(void);
 
 // this stores 9 characters: a space, then the 8 block elements that go from
@@ -55,11 +54,17 @@ static const wchar_t bars[] = {
 };
 
 static struct {
-	int totalCores;
+	int cores;
 	int elapsedTime;
 	int totalIdleTime;
 	int *coreIdleTimes;
 } coreStats;
+
+static struct {
+	int time;
+	int idle;
+	int *coreIdleTimes;
+} cacheInfo;
 
 int main(int argc, char *argv[])
 {
@@ -76,27 +81,28 @@ int main(int argc, char *argv[])
 			return 1;
 			break;
 		case ERR_CACHE_DOES_NOT_EXIST:
+			cacheTimes();
+			return 0;
 			break;
 		default:
 			fprintf(stderr, "Unknown error code\n");
 			break;
 	}
+	cacheTimes();
+	getTimeDiffs();
 	showTotalCPUTime();
 	showVisualCores();
-	coreStats_free();
 
 	return 0;
 }
 
 int getCoreInfo()
 {
-	int cacheTime, cacheIdle;
 	int ret;
 
-	coreStats.totalCores = sysconf(_SC_NPROCESSORS_ONLN);
-	int cachedCoreIdleTimes[coreStats.totalCores];
+	coreStats.cores = sysconf(_SC_NPROCESSORS_ONLN);
 
-	ret = getIdleAndElapsedTime();
+	ret = getUptimeAndIdleTime();
 	if (ret)
 		return ret;
 
@@ -105,20 +111,9 @@ int getCoreInfo()
 		return ret;
 
 	// TODO: ew
-	ret = getCachedElapsedTimeAndIdleTime(&cacheTime, &cacheIdle,
-				cachedCoreIdleTimes);
-	if (ret) {
-		// TODO: move this function call out of this function, as it
-		// doesn't make sense for what the function does
-		cacheTimes();
-		return ret;
-	}
-
-	ret = cacheTimes();
+	ret = getCachedElapsedTimeAndIdleTime();
 	if (ret)
 		return ret;
-
-	getTimeDiffs(cacheTime, cacheIdle, cachedCoreIdleTimes);
 
 	return SUCCESS;
 }
@@ -126,7 +121,7 @@ int getCoreInfo()
 void showTotalCPUTime()
 {
 	double fraction = (double)(100 * coreStats.totalIdleTime) /
-		(double)(coreStats.elapsedTime * coreStats.totalCores);
+		(double)(coreStats.elapsedTime * coreStats.cores);
 	// I don't know why, but somwtimes the idle time diff is higher than
 	// the elapsed time diff
 	if (fraction > 100.0)
@@ -137,12 +132,14 @@ void showTotalCPUTime()
 void showVisualCores()
 {
 	printf(" ");
-	for (int i = 0; i < coreStats.totalCores; i++)
+	for (int i = 0; i < coreStats.cores; i++)
 		showVisualCore(i);
+	coreStats_free();
 	printf("\n");
 }
 
-void showVisualCore(int core) {
+void showVisualCore(int core)
+{
 	int fraction = LENGTH(bars) - 1 -
 		(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
 	// same as before. The idle time diff is sometimes higher than
@@ -152,7 +149,7 @@ void showVisualCore(int core) {
 	printf("%lc", bars[fraction]);
 }
 
-int getIdleAndElapsedTime()
+int getUptimeAndIdleTime()
 {
 	double uptime, idle;
 	int ticksPerSec = sysconf(_SC_CLK_TCK);
@@ -171,25 +168,44 @@ int getIdleAndElapsedTime()
 	return SUCCESS;
 }
 
-int getCoreIdleTimes() {
+int getCoreIdleTimes()
+{
 	FILE *stats = fopen("/proc/stat", "r");
 	if (stats == NULL) {
 		fprintf(stderr, "Error reading from /proc/stat\n");
 		return ERR_FILE_CANNOT_BE_OPENED;
 	}
 
-	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.totalCores);
+	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
 	// ignore the first line, as that stores the collective core info
 	skipOverLine(stats);
 	// get the idle time of each core (the 5th column)
-	for (int i = 0; i < coreStats.totalCores; i++)
+	for (int i = 0; i < coreStats.cores; i++)
 		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
 				&coreStats.coreIdleTimes[i]);
 	fclose(stats);
 	return SUCCESS;
 }
 
-int cacheTimes() {
+int getCachedElapsedTimeAndIdleTime()
+{
+	FILE *cache = fopen("/tmp/cpubarcache", "r");
+	if (cache == NULL) {
+		fprintf(stderr, "Error reading from cache\n");
+		return ERR_CACHE_DOES_NOT_EXIST;
+	}
+	cacheInfo.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
+
+	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
+	for (int i = 0; i < coreStats.cores; i++)
+		fscanf(cache, "%d", &cacheInfo.coreIdleTimes[i]);
+	fclose(cache);
+
+	return SUCCESS;
+}
+
+int cacheTimes()
+{
 	FILE *cache = fopen("/tmp/cpubarcache", "w");
 	if (cache == NULL) {
 		fprintf(stderr, "Error writing to cache\n");
@@ -197,7 +213,7 @@ int cacheTimes() {
 	}
 
 	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
-	for (int i = 0; i < coreStats.totalCores; i++)
+	for (int i = 0; i < coreStats.cores; i++)
 		fprintf(cache, " %d", coreStats.coreIdleTimes[i]);
 	fprintf(cache, "\n");
 	fclose(cache);
@@ -205,31 +221,24 @@ int cacheTimes() {
 	return SUCCESS;
 }
 
-int getCachedElapsedTimeAndIdleTime(int *cacheTime, int *cacheIdle,
-		int cachedCoreIdleTimes[]) {
-	FILE *cache = fopen("/tmp/cpubarcache", "r");
-	if (cache == NULL)
-		return ERR_CACHE_DOES_NOT_EXIST;
-
-	fscanf(cache, "%d %d", cacheTime, cacheIdle);
-	for (int i = 0; i < coreStats.totalCores; i++)
-		fscanf(cache, "%d", &cachedCoreIdleTimes[i]);
-	fclose(cache);
-
-	return SUCCESS;
-}
-
-void getTimeDiffs(int cacheTime, int cacheIdle, int cachedCoreIdleTimes[]) {
-	coreStats.elapsedTime -= cacheTime;
-	coreStats.totalIdleTime -= cacheIdle;
-	for (int i = 0; i < coreStats.totalCores; i++)
-		coreStats.coreIdleTimes[i] -= cachedCoreIdleTimes[i];
+void getTimeDiffs()
+{
+	coreStats.elapsedTime -= cacheInfo.time;
+	coreStats.totalIdleTime -= cacheInfo.idle;
+	for (int i = 0; i < coreStats.cores; i++)
+		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdleTimes[i];
+	cacheInfo_free();
 }
 
 void skipOverLine(FILE *fp)
 {
 	while (fgetc(fp) != '\n')
 		;
+}
+
+void cacheInfo_free()
+{
+	free(cacheInfo.coreIdleTimes);
 }
 
 void coreStats_free()
