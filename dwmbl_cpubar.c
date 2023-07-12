@@ -18,6 +18,13 @@
 #define todigit(c)   ((c) - '0')
 #define LENGTH(arr)  (sizeof(arr) / sizeof(arr[0]))
 
+enum error {
+	SUCCESS,
+	ERR_FILE_CANNOT_BE_OPENED,
+	ERR_CACHE_CANNOT_BE_OPENED,
+	ERR_CACHE_DOES_NOT_EXIST,
+};
+
 static void showTotalCPUTime(void);
 static void showVisualCores(void);
 static void showVisualCore(int core);
@@ -59,13 +66,61 @@ int main(int argc, char *argv[])
 	// this allows the wide chars to be used
 	setlocale(LC_ALL, "");
 
-	if (getCoreInfo())
-		return 0;
+	switch (getCoreInfo()) {
+		case SUCCESS:
+			break;
+		case ERR_FILE_CANNOT_BE_OPENED:
+			return 1;
+			break;
+		case ERR_CACHE_CANNOT_BE_OPENED:
+			return 1;
+			break;
+		case ERR_CACHE_DOES_NOT_EXIST:
+			break;
+		default:
+			fprintf(stderr, "Unknown error code\n");
+			break;
+	}
 	showTotalCPUTime();
 	showVisualCores();
 	coreStats_free();
 
 	return 0;
+}
+
+int getCoreInfo()
+{
+	int cacheTime, cacheIdle;
+	int ret;
+
+	coreStats.totalCores = sysconf(_SC_NPROCESSORS_ONLN);
+	int cachedCoreIdleTimes[coreStats.totalCores];
+
+	ret = getIdleAndElapsedTime();
+	if (ret)
+		return ret;
+
+	ret = getCoreIdleTimes();
+	if (ret)
+		return ret;
+
+	// TODO: ew
+	ret = getCachedElapsedTimeAndIdleTime(&cacheTime, &cacheIdle,
+				cachedCoreIdleTimes);
+	if (ret) {
+		// TODO: move this function call out of this function, as it
+		// doesn't make sense for what the function does
+		cacheTimes();
+		return ret;
+	}
+
+	ret = cacheTimes();
+	if (ret)
+		return ret;
+
+	getTimeDiffs(cacheTime, cacheIdle, cachedCoreIdleTimes);
+
+	return SUCCESS;
 }
 
 void showTotalCPUTime()
@@ -97,34 +152,6 @@ void showVisualCore(int core) {
 	printf("%lc", bars[fraction]);
 }
 
-int getCoreInfo()
-{
-	int cacheTime, cacheIdle;
-
-	coreStats.totalCores = sysconf(_SC_NPROCESSORS_ONLN);
-	int cachedCoreIdleTimes[coreStats.totalCores];
-
-	if (getIdleAndElapsedTime())
-		// TODO: enum error codes
-		return 1;
-
-	if (getCoreIdleTimes())
-		return 1;
-
-	// TODO: ew
-	if (getCachedElapsedTimeAndIdleTime(&cacheTime, &cacheIdle,
-				cachedCoreIdleTimes)) {
-		// TODO: move this function call out of this function, as it
-		// doesn't make sense for what the function does
-		cacheTimes();
-		return 1;
-	}
-	cacheTimes();
-	getTimeDiffs(cacheTime, cacheIdle, cachedCoreIdleTimes);
-
-	return 0;
-}
-
 int getIdleAndElapsedTime()
 {
 	double uptime, idle;
@@ -132,7 +159,7 @@ int getIdleAndElapsedTime()
 	FILE *uptimeFile = fopen("/proc/uptime", "r");
 	if (uptimeFile == NULL) {
 		fprintf(stderr, "Error reading from /proc/uptime\n");
-		return 1;
+		return ERR_FILE_CANNOT_BE_OPENED;
 	}
 
 	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
@@ -141,14 +168,14 @@ int getIdleAndElapsedTime()
 	coreStats.elapsedTime = uptime * ticksPerSec;
 	coreStats.totalIdleTime = idle * ticksPerSec;
 
-	return 0;
+	return SUCCESS;
 }
 
 int getCoreIdleTimes() {
 	FILE *stats = fopen("/proc/stat", "r");
 	if (stats == NULL) {
 		fprintf(stderr, "Error reading from /proc/stat\n");
-		return 1;
+		return ERR_FILE_CANNOT_BE_OPENED;
 	}
 
 	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.totalCores);
@@ -159,14 +186,14 @@ int getCoreIdleTimes() {
 		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
 				&coreStats.coreIdleTimes[i]);
 	fclose(stats);
-	return 0;
+	return SUCCESS;
 }
 
 int cacheTimes() {
 	FILE *cache = fopen("/tmp/cpubarcache", "w");
 	if (cache == NULL) {
 		fprintf(stderr, "Error writing to cache\n");
-		return 1;
+		return ERR_CACHE_CANNOT_BE_OPENED;
 	}
 
 	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
@@ -175,21 +202,21 @@ int cacheTimes() {
 	fprintf(cache, "\n");
 	fclose(cache);
 
-	return 0;
+	return SUCCESS;
 }
 
 int getCachedElapsedTimeAndIdleTime(int *cacheTime, int *cacheIdle,
 		int cachedCoreIdleTimes[]) {
 	FILE *cache = fopen("/tmp/cpubarcache", "r");
 	if (cache == NULL)
-		return 1;
+		return ERR_CACHE_DOES_NOT_EXIST;
 
 	fscanf(cache, "%d %d", cacheTime, cacheIdle);
 	for (int i = 0; i < coreStats.totalCores; i++)
 		fscanf(cache, "%d", &cachedCoreIdleTimes[i]);
 	fclose(cache);
 
-	return 0;
+	return SUCCESS;
 }
 
 void getTimeDiffs(int cacheTime, int cacheIdle, int cachedCoreIdleTimes[]) {
