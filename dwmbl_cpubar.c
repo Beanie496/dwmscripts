@@ -99,6 +99,56 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+void showTotalCPUTime()
+{
+	double fraction;
+	if (coreStats.elapsedTime == 0)
+	       fraction = 0;
+	else
+	       fraction = (double)(100 * coreStats.totalIdleTime) /
+		       (double)(coreStats.elapsedTime * coreStats.cores);
+	// I don't know why, but somwtimes the idle time diff is higher than
+	// the elapsed time diff
+	if (fraction > 100.0)
+		fraction = 100.0;
+	printf("CPU: %.2f%%", 100.0 - fraction);
+}
+
+void showVisualCores()
+{
+	printf(" ");
+	for (int i = 0; i < coreStats.cores; i++)
+		showVisualCore(i);
+	free(coreStats.coreIdleTimes);
+	printf("\n");
+}
+
+void getTimeDiffs()
+{
+	coreStats.elapsedTime -= cacheInfo.time;
+	coreStats.totalIdleTime -= cacheInfo.idle;
+	for (int i = 0; i < coreStats.cores; i++)
+		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdleTimes[i];
+	free(cacheInfo.coreIdleTimes);
+}
+
+void showVisualCore(int core)
+{
+	int fraction;
+	if (coreStats.elapsedTime == 0)
+	        fraction = 0;
+	else
+	        // gets a number from 0 to 8, where 8 is max CPU use and 0 is
+	        // none.
+		fraction = LENGTH(bars) - 1 -
+			(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
+	// The idle time diff is sometimes higher than the total elapsed time
+	// diff
+	if (fraction < 0)
+		fraction = 0;
+	printf("%lc", bars[fraction]);
+}
+
 int getCoreInfo()
 {
 	int ret;
@@ -131,47 +181,6 @@ int getCacheInfo()
 	fclose(cache);
 
 	return SUCCESS;
-}
-
-void showTotalCPUTime()
-{
-	double fraction;
-	if (coreStats.elapsedTime == 0)
-	       fraction = 0;
-	else
-	       fraction = (double)(100 * coreStats.totalIdleTime) /
-		       (double)(coreStats.elapsedTime * coreStats.cores);
-	// I don't know why, but somwtimes the idle time diff is higher than
-	// the elapsed time diff
-	if (fraction > 100.0)
-		fraction = 100.0;
-	printf("CPU: %.2f%%", 100.0 - fraction);
-}
-
-void showVisualCores()
-{
-	printf(" ");
-	for (int i = 0; i < coreStats.cores; i++)
-		showVisualCore(i);
-	free(coreStats.coreIdleTimes);
-	printf("\n");
-}
-
-void showVisualCore(int core)
-{
-	int fraction;
-	if (coreStats.elapsedTime == 0)
-	        fraction = 0;
-	else
-	        // gets a number from 0 to 8, where 8 is max CPU use and 0 is
-	        // none.
-		fraction = LENGTH(bars) - 1 -
-			(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
-	// The idle time diff is sometimes higher than the total elapsed time
-	// diff
-	if (fraction < 0)
-		fraction = 0;
-	printf("%lc", bars[fraction]);
 }
 
 int getUptimeAndIdleTime()
@@ -227,15 +236,6 @@ int cacheTimes()
 	fclose(cache);
 
 	return SUCCESS;
-}
-
-void getTimeDiffs()
-{
-	coreStats.elapsedTime -= cacheInfo.time;
-	coreStats.totalIdleTime -= cacheInfo.idle;
-	for (int i = 0; i < coreStats.cores; i++)
-		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdleTimes[i];
-	free(cacheInfo.coreIdleTimes);
 }
 
 void skipOverLine(FILE *fp)
