@@ -25,19 +25,20 @@ enum error {
 	ERR_CACHE_DOES_NOT_EXIST,
 };
 
-static void showTotalCPUTime(void);
-static void showVisualCores(void);
-static void showVisualCore(int core);
-static int getCoreInfo(void);
-static int getUptimeAndIdleTime(void);
-static int getCoreIdleTimes(void);
-static int getCoreIdleTimes(void);
+static void cacheInfo_free(void);
 static int cacheTimes(void);
-static int getCachedElapsedTimeAndIdleTime(void);
+static void coreStats_free(void);
+static int getCacheInfo(void);
+static int getCoreIdleTimes(void);
+static int getCoreInfo(void);
+// this reads the two numbers from /proc/uptime, which is why they're lumped
+// into one function
+static int getUptimeAndIdleTime(void);
 static void getTimeDiffs(void);
 static void skipOverLine(FILE *fp);
-static void cacheInfo_free(void);
-static void coreStats_free(void);
+static void showTotalCPUTime(void);
+static void showVisualCore(int core);
+static void showVisualCores(void);
 
 // this stores 9 characters: a space, then the 8 block elements that go from
 // lower eighth to full block
@@ -76,17 +77,21 @@ int main(int argc, char *argv[])
 			break;
 		case ERR_FILE_CANNOT_BE_OPENED:
 			return 1;
+		default:
+			fprintf(stderr, "Unknown error code\n");
+			return 1;
+	}
+	switch (getCacheInfo()) {
+		case SUCCESS:
 			break;
 		case ERR_CACHE_CANNOT_BE_OPENED:
 			return 1;
-			break;
 		case ERR_CACHE_DOES_NOT_EXIST:
 			cacheTimes();
 			return 0;
-			break;
 		default:
-			fprintf(stderr, "Unknown error code\n");
-			break;
+			fprintf(stderr, "Error code doesn't make sense\n");
+			return 1;
 	}
 	cacheTimes();
 	getTimeDiffs();
@@ -109,11 +114,21 @@ int getCoreInfo()
 	ret = getCoreIdleTimes();
 	if (ret)
 		return ret;
+}
 
-	// TODO: ew
-	ret = getCachedElapsedTimeAndIdleTime();
-	if (ret)
-		return ret;
+int getCacheInfo()
+{
+	FILE *cache = fopen("/tmp/cpubarcache", "r");
+	if (cache == NULL) {
+		fprintf(stderr, "Error reading from cache\n");
+		return ERR_CACHE_DOES_NOT_EXIST;
+	}
+	cacheInfo.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
+
+	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
+	for (int i = 0; i < coreStats.cores; i++)
+		fscanf(cache, "%d", &cacheInfo.coreIdleTimes[i]);
+	fclose(cache);
 
 	return SUCCESS;
 }
@@ -154,9 +169,6 @@ void showVisualCore(int core)
 			(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
 	// The idle time diff is sometimes higher than the total elapsed time
 	// diff
-
-	// same as before. The idle time diff is sometimes higher than
-	// the total elapsed time diff.
 	if (fraction < 0)
 		fraction = 0;
 	printf("%lc", bars[fraction]);
@@ -197,23 +209,6 @@ int getCoreIdleTimes()
 		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
 				&coreStats.coreIdleTimes[i]);
 	fclose(stats);
-	return SUCCESS;
-}
-
-int getCachedElapsedTimeAndIdleTime()
-{
-	FILE *cache = fopen("/tmp/cpubarcache", "r");
-	if (cache == NULL) {
-		fprintf(stderr, "Error reading from cache\n");
-		return ERR_CACHE_DOES_NOT_EXIST;
-	}
-	cacheInfo.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
-
-	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
-	for (int i = 0; i < coreStats.cores; i++)
-		fscanf(cache, "%d", &cacheInfo.coreIdleTimes[i]);
-	fclose(cache);
-
 	return SUCCESS;
 }
 
