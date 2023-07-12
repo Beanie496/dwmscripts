@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 			cacheTimes();
 			return 0;
 		default:
-			fprintf(stderr, "Error code doesn't make sense\n");
+			fprintf(stderr, "Unknown error code\n");
 			return 1;
 	}
 	cacheTimes();
