@@ -62,7 +62,7 @@ static struct {
 static struct {
 	int time;
 	int idle;
-	int *coreIdleTimes;
+	int *coreIdle;
 } cacheInfo;
 
 int main(int argc, char *argv[])
@@ -126,8 +126,8 @@ void getTimeDiffs()
 	coreStats.elapsedTime -= cacheInfo.time;
 	coreStats.totalIdleTime -= cacheInfo.idle;
 	for (int i = 0; i < coreStats.cores; i++)
-		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdleTimes[i];
-	free(cacheInfo.coreIdleTimes);
+		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdle[i];
+	free(cacheInfo.coreIdle);
 }
 
 void showVisualCore(int core)
@@ -179,11 +179,11 @@ int getCacheInfo()
 		fprintf(stderr, "Error reading from cache\n");
 		return ERR_CACHE_DOES_NOT_EXIST;
 	}
-	cacheInfo.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
+	cacheInfo.coreIdle = malloc(sizeof(int) * coreStats.cores);
 
 	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
 	for (int i = 0; i < coreStats.cores; i++)
-		fscanf(cache, "%d", &cacheInfo.coreIdleTimes[i]);
+		fscanf(cache, "%d", &cacheInfo.coreIdle[i]);
 	fclose(cache);
 
 	return SUCCESS;
