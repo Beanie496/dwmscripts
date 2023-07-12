@@ -25,9 +25,7 @@ enum error {
 	ERR_CACHE_DOES_NOT_EXIST,
 };
 
-static void cacheInfo_free(void);
 static int cacheTimes(void);
-static void coreStats_free(void);
 static int getCacheInfo(void);
 static int getCoreIdleTimes(void);
 static int getCoreInfo(void);
@@ -114,6 +112,8 @@ int getCoreInfo()
 	ret = getCoreIdleTimes();
 	if (ret)
 		return ret;
+
+	return SUCCESS;
 }
 
 int getCacheInfo()
@@ -153,7 +153,7 @@ void showVisualCores()
 	printf(" ");
 	for (int i = 0; i < coreStats.cores; i++)
 		showVisualCore(i);
-	coreStats_free();
+	free(coreStats.coreIdleTimes);
 	printf("\n");
 }
 
@@ -235,21 +235,11 @@ void getTimeDiffs()
 	coreStats.totalIdleTime -= cacheInfo.idle;
 	for (int i = 0; i < coreStats.cores; i++)
 		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdleTimes[i];
-	cacheInfo_free();
+	free(cacheInfo.coreIdleTimes);
 }
 
 void skipOverLine(FILE *fp)
 {
 	while (fgetc(fp) != '\n')
 		;
-}
-
-void cacheInfo_free()
-{
-	free(cacheInfo.coreIdleTimes);
-}
-
-void coreStats_free()
-{
-	free(coreStats.coreIdleTimes);
 }
