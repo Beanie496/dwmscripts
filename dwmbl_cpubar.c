@@ -28,7 +28,7 @@ enum error {
 static int cacheTimes(void);
 static int getCacheInfo(void);
 static int getCoreIdleTimes(void);
-static int getCoreInfo(void);
+static void getCoreInfo(void);
 // this reads the two numbers from /proc/uptime, which is why they're lumped
 // into one function
 static int getUptimeAndIdleTime(void);
@@ -70,15 +70,7 @@ int main(int argc, char *argv[])
 	// this allows the wide chars to be used
 	setlocale(LC_ALL, "");
 
-	switch (getCoreInfo()) {
-		case SUCCESS:
-			break;
-		case ERR_FILE_CANNOT_BE_OPENED:
-			return 1;
-		default:
-			fprintf(stderr, "Unknown error code\n");
-			return 1;
-	}
+	getCoreInfo();
 	switch (getCacheInfo()) {
 		case SUCCESS:
 			break;
@@ -149,21 +141,29 @@ void showVisualCore(int core)
 	printf("%lc", bars[fraction]);
 }
 
-int getCoreInfo()
+void getCoreInfo()
 {
-	int ret;
-
 	coreStats.cores = sysconf(_SC_NPROCESSORS_ONLN);
 
-	ret = getUptimeAndIdleTime();
-	if (ret)
-		return ret;
+	switch (getUptimeAndIdleTime()) {
+		case SUCCESS:
+			break;
+		case ERR_FILE_CANNOT_BE_OPENED:
+			exit(ERR_FILE_CANNOT_BE_OPENED);
+		default:
+			fprintf(stderr, "Unknown error code\n");
+			exit(1);
+	}
 
-	ret = getCoreIdleTimes();
-	if (ret)
-		return ret;
-
-	return SUCCESS;
+	switch (getCoreIdleTimes()) {
+		case SUCCESS:
+			break;
+		case ERR_FILE_CANNOT_BE_OPENED:
+			exit(ERR_FILE_CANNOT_BE_OPENED);
+		default:
+			fprintf(stderr, "Unknown error code\n");
+			exit(1);
+	}
 }
 
 int getCacheInfo()
@@ -218,6 +218,7 @@ int getCoreIdleTimes()
 		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
 				&coreStats.coreIdleTimes[i]);
 	fclose(stats);
+
 	return SUCCESS;
 }
 
