@@ -120,8 +120,12 @@ int getCoreInfo()
 
 void showTotalCPUTime()
 {
-	double fraction = (double)(100 * coreStats.totalIdleTime) /
-		(double)(coreStats.elapsedTime * coreStats.cores);
+	double fraction;
+	if (coreStats.elapsedTime == 0)
+	       fraction = 0;
+	else
+	       fraction = (double)(100 * coreStats.totalIdleTime) /
+		       (double)(coreStats.elapsedTime * coreStats.cores);
 	// I don't know why, but somwtimes the idle time diff is higher than
 	// the elapsed time diff
 	if (fraction > 100.0)
@@ -140,8 +144,17 @@ void showVisualCores()
 
 void showVisualCore(int core)
 {
-	int fraction = LENGTH(bars) - 1 -
-		(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
+	int fraction;
+	if (coreStats.elapsedTime == 0)
+	        fraction = 0;
+	else
+	        // gets a number from 0 to 8, where 8 is max CPU use and 0 is
+	        // none.
+		fraction = LENGTH(bars) - 1 -
+			(int)(8 * coreStats.coreIdleTimes[core] / coreStats.elapsedTime);
+	// The idle time diff is sometimes higher than the total elapsed time
+	// diff
+
 	// same as before. The idle time diff is sometimes higher than
 	// the total elapsed time diff.
 	if (fraction < 0)
