@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	getUptimeAndIdleTime();
+	coreStats.cores = sysconf(_SC_NPROCESSORS_ONLN);
 	if (visualCores)
 		getCoreInfo();
 	getCacheInfo(visualCores);
@@ -122,8 +123,6 @@ void getUptimeAndIdleTime()
 
 void getCoreInfo()
 {
-	coreStats.cores = sysconf(_SC_NPROCESSORS_ONLN);
-
 	FILE *stats = fopen("/proc/stat", "r");
 	if (stats == NULL) {
 		fprintf(stderr, "Error reading from /proc/stat\n");
@@ -148,12 +147,13 @@ void getCacheInfo(int visualCores)
 		cacheTimes(visualCores);
 		exit(SUCCESS);
 	}
-	cacheInfo.coreIdle = malloc(sizeof(int) * coreStats.cores);
-
 	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
-	if (visualCores)
+
+	if (visualCores) {
+		cacheInfo.coreIdle = malloc(sizeof(int) * coreStats.cores);
 		for (int i = 0; i < coreStats.cores; i++)
 			fscanf(cache, "%d", &cacheInfo.coreIdle[i]);
+	}
 	fclose(cache);
 }
 
@@ -177,10 +177,11 @@ void calcTimeDiffs(int visualCores)
 {
 	coreStats.elapsedTime -= cacheInfo.time;
 	coreStats.totalIdleTime -= cacheInfo.idle;
-	if (visualCores)
+	if (visualCores) {
 		for (int i = 0; i < coreStats.cores; i++)
 			coreStats.coreIdleTimes[i] -= cacheInfo.coreIdle[i];
-	free(cacheInfo.coreIdle);
+		free(cacheInfo.coreIdle);
+	}
 }
 
 void showTotalCPUTime()
