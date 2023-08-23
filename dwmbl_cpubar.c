@@ -25,18 +25,17 @@ enum error {
 	ERR_CACHE_DOES_NOT_EXIST,
 };
 
-static int cacheTimes(void);
-static int getCacheInfo(void);
-static int getCoreIdleTimes(void);
-static void getCoreInfo(void);
-// this reads the two numbers from /proc/uptime, which is why they're lumped
-// into one function
-static int getUptimeAndIdleTime(void);
-static void getTimeDiffs(void);
-static void skipOverLine(FILE *fp);
-static void showTotalCPUTime(void);
-static void showVisualCore(int core);
-static void showVisualCores(void);
+static void cacheTimes(void);
+static inline void getCacheInfo(void);
+static inline void getCoreInfo(void);
+// this reads the two numbers from /proc/uptime, so they're lumped into one
+// function for efficiency
+static inline void getUptimeAndIdleTime(void);
+static inline void calcTimeDiffs(void);
+static inline void skipOverLine(FILE *fp);
+static inline void showTotalCPUTime(void);
+static inline void showVisualCore(int core);
+static inline void showVisualCores(void);
 
 // this stores 9 characters: a space, then the 8 block elements that go from
 // lower eighth to full block
@@ -70,31 +69,92 @@ int main(int argc, char *argv[])
 	// this allows the wide chars to be used
 	setlocale(LC_ALL, "");
 
+	getUptimeAndIdleTime();
 	getCoreInfo();
-	switch (getCacheInfo()) {
-		case SUCCESS:
-			break;
-		case ERR_CACHE_DOES_NOT_EXIST:
-			cacheTimes();
-			return 0;
-		default:
-			fprintf(stderr, "Unknown error code\n");
-			return 1;
-	}
-	switch (cacheTimes()) {
-		case SUCCESS:
-			break;
-		case ERR_CACHE_CANNOT_BE_OPENED:
-			return 1;
-		default:
-			fprintf(stderr, "Unknown error code\n");
-			return 1;
-	}
-	getTimeDiffs();
+	getCacheInfo();
+	cacheTimes();
+	calcTimeDiffs();
 	showTotalCPUTime();
 	showVisualCores();
 
 	return 0;
+}
+
+void getUptimeAndIdleTime()
+{
+	double uptime, idle;
+	int ticksPerSec = sysconf(_SC_CLK_TCK);
+	FILE *uptimeFile = fopen("/proc/uptime", "r");
+	if (uptimeFile == NULL) {
+		fprintf(stderr, "Error reading from /proc/uptime\n");
+		exit(ERR_FILE_CANNOT_BE_OPENED);
+	}
+
+	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
+	fclose(uptimeFile);
+
+	coreStats.elapsedTime = uptime * ticksPerSec;
+	coreStats.totalIdleTime = idle * ticksPerSec;
+}
+
+void getCoreInfo()
+{
+	coreStats.cores = sysconf(_SC_NPROCESSORS_ONLN);
+
+	FILE *stats = fopen("/proc/stat", "r");
+	if (stats == NULL) {
+		fprintf(stderr, "Error reading from /proc/stat\n");
+		exit(ERR_FILE_CANNOT_BE_OPENED);
+	}
+
+	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
+	// ignore the first line, as that stores the collective core info
+	skipOverLine(stats);
+	// get the idle time of each core (the 5th column)
+	for (int i = 0; i < coreStats.cores; i++)
+		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
+				&coreStats.coreIdleTimes[i]);
+	fclose(stats);
+}
+
+void getCacheInfo()
+{
+	FILE *cache = fopen("/tmp/cpubarcache", "r");
+	if (cache == NULL) {
+		fprintf(stderr, "Error reading from cache\n");
+		cacheTimes();
+		exit(SUCCESS);
+	}
+	cacheInfo.coreIdle = malloc(sizeof(int) * coreStats.cores);
+
+	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
+	for (int i = 0; i < coreStats.cores; i++)
+		fscanf(cache, "%d", &cacheInfo.coreIdle[i]);
+	fclose(cache);
+}
+
+void cacheTimes()
+{
+	FILE *cache = fopen("/tmp/cpubarcache", "w");
+	if (cache == NULL) {
+		fprintf(stderr, "Error writing to cache\n");
+		exit(ERR_CACHE_CANNOT_BE_OPENED);
+	}
+
+	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
+	for (int i = 0; i < coreStats.cores; i++)
+		fprintf(cache, " %d", coreStats.coreIdleTimes[i]);
+	fprintf(cache, "\n");
+	fclose(cache);
+}
+
+void calcTimeDiffs()
+{
+	coreStats.elapsedTime -= cacheInfo.time;
+	coreStats.totalIdleTime -= cacheInfo.idle;
+	for (int i = 0; i < coreStats.cores; i++)
+		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdle[i];
+	free(cacheInfo.coreIdle);
 }
 
 void showTotalCPUTime()
@@ -121,15 +181,6 @@ void showVisualCores()
 	printf("\n");
 }
 
-void getTimeDiffs()
-{
-	coreStats.elapsedTime -= cacheInfo.time;
-	coreStats.totalIdleTime -= cacheInfo.idle;
-	for (int i = 0; i < coreStats.cores; i++)
-		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdle[i];
-	free(cacheInfo.coreIdle);
-}
-
 void showVisualCore(int core)
 {
 	int fraction;
@@ -145,104 +196,6 @@ void showVisualCore(int core)
 	if (fraction < 0)
 		fraction = 0;
 	printf("%lc", bars[fraction]);
-}
-
-void getCoreInfo()
-{
-	coreStats.cores = sysconf(_SC_NPROCESSORS_ONLN);
-
-	switch (getUptimeAndIdleTime()) {
-		case SUCCESS:
-			break;
-		case ERR_FILE_CANNOT_BE_OPENED:
-			exit(ERR_FILE_CANNOT_BE_OPENED);
-		default:
-			fprintf(stderr, "Unknown error code\n");
-			exit(1);
-	}
-
-	switch (getCoreIdleTimes()) {
-		case SUCCESS:
-			break;
-		case ERR_FILE_CANNOT_BE_OPENED:
-			exit(ERR_FILE_CANNOT_BE_OPENED);
-		default:
-			fprintf(stderr, "Unknown error code\n");
-			exit(1);
-	}
-}
-
-int getCacheInfo()
-{
-	FILE *cache = fopen("/tmp/cpubarcache", "r");
-	if (cache == NULL) {
-		fprintf(stderr, "Error reading from cache\n");
-		return ERR_CACHE_DOES_NOT_EXIST;
-	}
-	cacheInfo.coreIdle = malloc(sizeof(int) * coreStats.cores);
-
-	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
-	for (int i = 0; i < coreStats.cores; i++)
-		fscanf(cache, "%d", &cacheInfo.coreIdle[i]);
-	fclose(cache);
-
-	return SUCCESS;
-}
-
-int getUptimeAndIdleTime()
-{
-	double uptime, idle;
-	int ticksPerSec = sysconf(_SC_CLK_TCK);
-	FILE *uptimeFile = fopen("/proc/uptime", "r");
-	if (uptimeFile == NULL) {
-		fprintf(stderr, "Error reading from /proc/uptime\n");
-		return ERR_FILE_CANNOT_BE_OPENED;
-	}
-
-	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
-	fclose(uptimeFile);
-
-	coreStats.elapsedTime = uptime * ticksPerSec;
-	coreStats.totalIdleTime = idle * ticksPerSec;
-
-	return SUCCESS;
-}
-
-int getCoreIdleTimes()
-{
-	FILE *stats = fopen("/proc/stat", "r");
-	if (stats == NULL) {
-		fprintf(stderr, "Error reading from /proc/stat\n");
-		return ERR_FILE_CANNOT_BE_OPENED;
-	}
-
-	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
-	// ignore the first line, as that stores the collective core info
-	skipOverLine(stats);
-	// get the idle time of each core (the 5th column)
-	for (int i = 0; i < coreStats.cores; i++)
-		fscanf(stats, "%*s %*d %*d %*d %d %*d %*d %*d %*d %*d %*d",
-				&coreStats.coreIdleTimes[i]);
-	fclose(stats);
-
-	return SUCCESS;
-}
-
-int cacheTimes()
-{
-	FILE *cache = fopen("/tmp/cpubarcache", "w");
-	if (cache == NULL) {
-		fprintf(stderr, "Error writing to cache\n");
-		return ERR_CACHE_CANNOT_BE_OPENED;
-	}
-
-	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
-	for (int i = 0; i < coreStats.cores; i++)
-		fprintf(cache, " %d", coreStats.coreIdleTimes[i]);
-	fprintf(cache, "\n");
-	fclose(cache);
-
-	return SUCCESS;
 }
 
 void skipOverLine(FILE *fp)
