@@ -11,6 +11,7 @@
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #define MAXLINE      100
@@ -25,17 +26,18 @@ enum error {
 	ERR_CACHE_DOES_NOT_EXIST,
 };
 
-static void cacheTimes(void);
-static inline void getCacheInfo(void);
+static void cacheTimes(int visualCores);
+static inline void getCacheInfo(int visualCores);
 static inline void getCoreInfo(void);
 // this reads the two numbers from /proc/uptime, so they're lumped into one
 // function for efficiency
 static inline void getUptimeAndIdleTime(void);
-static inline void calcTimeDiffs(void);
+static inline void calcTimeDiffs(int visualCores);
 static inline void skipOverLine(FILE *fp);
 static inline void showTotalCPUTime(void);
 static inline void showVisualCore(int core);
 static inline void showVisualCores(void);
+static inline void usage(char name[]);
 
 // this stores 9 characters: a space, then the 8 block elements that go from
 // lower eighth to full block
@@ -66,18 +68,39 @@ static struct {
 
 int main(int argc, char *argv[])
 {
+	int visualCores = 0;
+
+	while (--argc > 0) {
+		if (!strcmp(argv[argc], "-h"))
+			usage(argv[0]);
+		else if (!strcmp(argv[argc], "-v"))
+			visualCores = 1;
+	}
+
 	// this allows the wide chars to be used
 	setlocale(LC_ALL, "");
 
 	getUptimeAndIdleTime();
-	getCoreInfo();
-	getCacheInfo();
-	cacheTimes();
-	calcTimeDiffs();
+	if (visualCores)
+		getCoreInfo();
+	getCacheInfo(visualCores);
+	cacheTimes(visualCores);
+	calcTimeDiffs(visualCores);
 	showTotalCPUTime();
-	showVisualCores();
+	if (visualCores)
+		showVisualCores();
+	printf("\n");
 
 	return 0;
+}
+
+void usage(char name[])
+{
+	printf("Usage: %s [options]\n"
+		"Options:\n"
+		"  -v		Show visual cores\n"
+		"  -h		Print this message\n", name);
+	exit(SUCCESS);
 }
 
 void getUptimeAndIdleTime()
@@ -117,23 +140,24 @@ void getCoreInfo()
 	fclose(stats);
 }
 
-void getCacheInfo()
+void getCacheInfo(int visualCores)
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "r");
 	if (cache == NULL) {
 		fprintf(stderr, "Error reading from cache\n");
-		cacheTimes();
+		cacheTimes(visualCores);
 		exit(SUCCESS);
 	}
 	cacheInfo.coreIdle = malloc(sizeof(int) * coreStats.cores);
 
 	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
-	for (int i = 0; i < coreStats.cores; i++)
-		fscanf(cache, "%d", &cacheInfo.coreIdle[i]);
+	if (visualCores)
+		for (int i = 0; i < coreStats.cores; i++)
+			fscanf(cache, "%d", &cacheInfo.coreIdle[i]);
 	fclose(cache);
 }
 
-void cacheTimes()
+void cacheTimes(int visualCores)
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "w");
 	if (cache == NULL) {
@@ -142,18 +166,20 @@ void cacheTimes()
 	}
 
 	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
-	for (int i = 0; i < coreStats.cores; i++)
-		fprintf(cache, " %d", coreStats.coreIdleTimes[i]);
+	if (visualCores)
+		for (int i = 0; i < coreStats.cores; i++)
+			fprintf(cache, " %d", coreStats.coreIdleTimes[i]);
 	fprintf(cache, "\n");
 	fclose(cache);
 }
 
-void calcTimeDiffs()
+void calcTimeDiffs(int visualCores)
 {
 	coreStats.elapsedTime -= cacheInfo.time;
 	coreStats.totalIdleTime -= cacheInfo.idle;
-	for (int i = 0; i < coreStats.cores; i++)
-		coreStats.coreIdleTimes[i] -= cacheInfo.coreIdle[i];
+	if (visualCores)
+		for (int i = 0; i < coreStats.cores; i++)
+			coreStats.coreIdleTimes[i] -= cacheInfo.coreIdle[i];
 	free(cacheInfo.coreIdle);
 }
 
@@ -178,7 +204,6 @@ void showVisualCores()
 	for (int i = 0; i < coreStats.cores; i++)
 		showVisualCore(i);
 	free(coreStats.coreIdleTimes);
-	printf("\n");
 }
 
 void showVisualCore(int core)
