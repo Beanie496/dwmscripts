@@ -8,6 +8,7 @@
  * Also, I prefer writing C than shell scripting.
  */
 #include <ctype.h>
+#include <errno.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,13 +19,6 @@
 #define MAXWORD      20
 #define todigit(c)   ((c) - '0')
 #define LENGTH(arr)  (sizeof(arr) / sizeof(arr[0]))
-
-enum error {
-	SUCCESS,
-	ERR_FILE_CANNOT_BE_OPENED,
-	ERR_CACHE_CANNOT_BE_OPENED,
-	ERR_CACHE_DOES_NOT_EXIST,
-};
 
 static void cacheTimes(int visualCores);
 static inline void getCacheInfo(int visualCores);
@@ -101,7 +95,7 @@ void usage(char name[])
 		"Options:\n"
 		"  -v		Show visual cores\n"
 		"  -h		Print this message\n", name);
-	exit(SUCCESS);
+	exit(0);
 }
 
 void getUptimeAndIdleTime()
@@ -110,8 +104,8 @@ void getUptimeAndIdleTime()
 	int ticksPerSec = sysconf(_SC_CLK_TCK);
 	FILE *uptimeFile = fopen("/proc/uptime", "r");
 	if (uptimeFile == NULL) {
-		fprintf(stderr, "Error reading from /proc/uptime\n");
-		exit(ERR_FILE_CANNOT_BE_OPENED);
+		perror("Error reading from /proc/uptime");
+		exit(errno);
 	}
 
 	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
@@ -125,8 +119,8 @@ void getCoreInfo()
 {
 	FILE *stats = fopen("/proc/stat", "r");
 	if (stats == NULL) {
-		fprintf(stderr, "Error reading from /proc/stat\n");
-		exit(ERR_FILE_CANNOT_BE_OPENED);
+		perror("Error reading from /proc/stat");
+		exit(errno);
 	}
 
 	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
@@ -143,9 +137,9 @@ void getCacheInfo(int visualCores)
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "r");
 	if (cache == NULL) {
-		fprintf(stderr, "Error reading from cache\n");
+		perror("Error reading from cache");
 		cacheTimes(visualCores);
-		exit(SUCCESS);
+		exit(errno);
 	}
 	fscanf(cache, "%d %d", &cacheInfo.time, &cacheInfo.idle);
 
@@ -161,8 +155,8 @@ void cacheTimes(int visualCores)
 {
 	FILE *cache = fopen("/tmp/cpubarcache", "w");
 	if (cache == NULL) {
-		fprintf(stderr, "Error writing to cache\n");
-		exit(ERR_CACHE_CANNOT_BE_OPENED);
+		perror("Error writing to cache");
+		exit(errno);
 	}
 
 	fprintf(cache, "%d %d", coreStats.elapsedTime, coreStats.totalIdleTime);
