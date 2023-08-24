@@ -103,10 +103,6 @@ void getUptimeAndIdleTime()
 	double uptime, idle;
 	int ticksPerSec = sysconf(_SC_CLK_TCK);
 	FILE *uptimeFile = fopen("/proc/uptime", "r");
-	if (uptimeFile == NULL) {
-		perror("Error reading from /proc/uptime");
-		exit(errno);
-	}
 
 	fscanf(uptimeFile, "%lf %lf", &uptime, &idle);
 	fclose(uptimeFile);
@@ -118,10 +114,6 @@ void getUptimeAndIdleTime()
 void getCoreInfo()
 {
 	FILE *stats = fopen("/proc/stat", "r");
-	if (stats == NULL) {
-		perror("Error reading from /proc/stat");
-		exit(errno);
-	}
 
 	coreStats.coreIdleTimes = malloc(sizeof(int) * coreStats.cores);
 	// ignore the first line, as that stores the collective core info
