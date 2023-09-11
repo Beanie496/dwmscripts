@@ -51,8 +51,10 @@ case $status in
 
 		fi
 		;;
+	"Not charging")
+		symbol="⚡"
+		;;
 	*)
-		exit 1;
 		;;
 esac
 
