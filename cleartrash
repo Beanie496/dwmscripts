@@ -1,3 +1,0 @@
-#!/bin/sh
-# * and .* because * ignores hidden files
-rm ~/.local/share/Trash/{info,files}/{*,.*} 2> /dev/null

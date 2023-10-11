@@ -1,5 +1,0 @@
-#!/bin/sh
-echo "[Trash Info]
-Path=$(pwd)/$1
-DeletionDate=$(date +%FT%H:%M:%S)" > ~/.local/share/Trash/info/$1.trashinfo
-mv $1 ~/.local/share/Trash/files/
