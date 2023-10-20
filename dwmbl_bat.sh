@@ -2,8 +2,8 @@
 
 battery="/sys/class/power_supply/BAT1"
 cache="/tmp/batterynotifycache"
-status=$(cat "$battery/status")
 capacity=$(cat "$battery/capacity")
+status=$(cat "$battery/status")
 nearlyfull=90
 low=20
 criticallylow=10
