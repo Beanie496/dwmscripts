@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 
 battery="/sys/class/power_supply/BAT1"
 cache="/tmp/batterynotifycache"

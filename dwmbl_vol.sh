@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 
 muted=$(wpctl get-volume @DEFAULT_SINK@ | awk '{ print $3 }')
 volume=$(wpctl get-volume @DEFAULT_SINK@ | awk '{ print $2 * 100 }')

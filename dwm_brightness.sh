@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 max=$(brightnessctl m)
 current=$(brightnessctl g)
 percent=$(( $current * 100 / $max))
