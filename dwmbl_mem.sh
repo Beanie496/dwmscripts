@@ -1,2 +1,2 @@
 #!/bin/dash
-free --mega | awk '/^Mem/ { print "RAM: " $3 " / " $2 " MB" }'
+free -m | awk '/^Mem/ { print "RAM: " $3 " / " $2 " MiB" }'
