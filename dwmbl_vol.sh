@@ -14,4 +14,4 @@ else
 	echo "🔊 $volume%"
 fi
 
-dunstify -t 1000 -h string:x-dunst-stack-tag:speaker-volume-change "Speaker volume" "Volume: $volume%$muted"
+dunstify -t 1000 -h string:x-dunst-stack-tag:speaker-volume-change "Speaker volume" "Volume: $volume% $muted"
