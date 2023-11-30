@@ -1,2 +1,6 @@
 #!/bin/sh
-tar -czf $1.tar.gz $1
+for file in "$@"; do
+    tar -czf "$file.tar.gz" "$file" &
+done
+wait
+echo "Backed up all files"
