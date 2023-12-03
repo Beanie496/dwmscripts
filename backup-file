@@ -3,4 +3,4 @@ for file in "$@"; do
     tar -czf "$file.tar.gz" "$file" &
 done
 wait
-echo "Backed up all files"
+notify-send -u low "backup-file" "Backed up all files"
