@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/dash
 for file in "$@"; do
     tar -czf "$file.tar.gz" "$file" &
 done
