@@ -5,7 +5,7 @@ cache="/tmp/batterynotifycache"
 capacity=$(cat "$battery/capacity")
 status=$(cat "$battery/status")
 nearlyfull=95
-partially_empty=60
+partiallyempty=60
 low=20
 criticallylow=10
 # this is used to set the cache to a battery level within normal levels.
@@ -46,10 +46,10 @@ case $status in
 				echo "$low" > "$cache"
 			fi
 			symbol="❗"
-		elif [ $capacity -le $partially_empty ]; then
-			if [ "$(cat "$cache")" -gt "$partially_empty" ]; then
-				dunstify -u low -t 3000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery partially empty" "Battery level below $partially_empty%"
-				echo "$partially_empty" > "$cache"
+		elif [ $capacity -le $partiallyempty ]; then
+			if [ "$(cat "$cache")" -gt "$partiallyempty" ]; then
+				dunstify -u low -t 3000 -h string:x-dunst-stack-tag:battery-percentage-alert "Battery partially empty" "Battery level below $partiallyempty%"
+				echo "$partiallyempty" > "$cache"
 			fi
 			symbol="🔋"
 		else
