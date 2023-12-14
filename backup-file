@@ -1,6 +1,7 @@
 #!/bin/dash
 for file in "$@"; do
     tar -czf "$file.tar.gz" "$file" &
+	files="$files'$file', "
 done
 wait
-notify-send -u low "backup-file" "Backed up all files"
+notify-send -u low "backup-file" "In $(pwd): backed up ${files%??}."
