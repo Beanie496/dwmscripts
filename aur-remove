@@ -1,0 +1,17 @@
+#!/bin/bash
+XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
+AURDEST=${AURDEST:-$XDG_CACHE_HOME/aurutils}
+
+if [ "$1" == "" ]; then
+	echo "Need at least one argument"
+	exit 1
+fi
+
+{ IFS=: read -r _ _;
+  IFS=: read -r _ root;
+  IFS=: read -r _ path;
+} < <(aur repo --status)
+
+repo-remove $path $1
+rm $root/$1-[0-9]*
+rm -rf $AURDEST/sync/$1
