@@ -12,6 +12,8 @@ fi
   IFS=: read -r _ path;
 } < <(aur repo --status)
 
-repo-remove $path $1
-rm $root/$1-[0-9]*
-rm -rf $AURDEST/sync/$1
+repo-remove $path $@
+for repo in $@; do
+	rm $root/$repo-[0-9]*
+	rm -rf $AURDEST/sync/$repo
+done

@@ -1,2 +1,2 @@
 #!/bin/dash
-cat $1 | xclip -sel clipboard
+cat "$1" | xclip -sel clipboard
