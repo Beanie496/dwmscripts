@@ -2,7 +2,7 @@
 
 muted=$(wpctl get-volume @DEFAULT_SINK@ | awk '{ print $3 }')
 volume=$(wpctl get-volume @DEFAULT_SINK@ | awk '{ print $2 * 100 }')
-if [ "$muted" == "[MUTED]" ]; then
+if [ "$muted" = "[MUTED]" ]; then
 	echo "🔇 $volume%"
         # this makes the spacing look nicer
 	muted=" $muted"
