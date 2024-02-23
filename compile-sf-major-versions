@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# stockfish 1 is special, and not in a good way
+git checkout sf_1.0
+# the makefile sets CXX to `icpc` so replace it with `g++`
+sed -i s/icpc/g++/ Makefile
+# gcc complains about missing cstring in some files so just insert an include
+# at the top of files in question
+sed -i '1i#include <cstring>' position.cpp material.cpp history.cpp tt.cpp pawns.cpp search.cpp
+# no profile-build so just add popcnt manually
+make -j CXXFLAGS="-mpopcnt"
+mv stockfish stockfish-1
+git restore "*"
+
+for tag in $(seq 2 16); do
+	rm .depend
+	if [ $tag -eq 1 -o $tag -eq 2 ]; then
+		git checkout sf_$tag.0
+	else
+		git checkout sf_$tag
+	fi
+	make -j profile-build ARCH=x86-64-modern
+	mv stockfish stockfish-$tag
+done
+make clean
+rm nn-*
