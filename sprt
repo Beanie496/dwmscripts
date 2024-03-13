@@ -1,20 +1,30 @@
 #!/bin/dash
 date=$(date '+%Y-%m-%d_%H-%M-%S')
 sprt_dir=$HOME/coding/sprt
+root_dir=.
 concurrency=8
 
-while getopts "c:" option
+while getopts "c:p:" option
 do
 	case $option in
 		c) concurrency=$OPTARG ;;
+		p) root_dir=$OPTARG ;;
 	esac
 done
 
 shift $(($OPTIND - 1))
 
+cd $root_dir
+git checkout master
+cargo build --release
+mv $root_dir/target/release/crab $sprt_dir/master
+git checkout $1
+cargo build --release
+mv $root_dir/target/release/crab $sprt_dir/new
+
 cutechess-cli \
-    -engine name=$1 proto=uci cmd=$1 \
-    -engine name=$2 proto=uci cmd=$2 \
+    -engine name=new proto=uci cmd=$sprt_dir/new \
+    -engine name=master proto=uci cmd=$sprt_dir/master \
     -each tc=8+0.08 \
     -variant standard \
     -concurrency $concurrency \
@@ -25,3 +35,6 @@ cutechess-cli \
     #-debug \
     #-draw movenumber=40 movecount=3 score=10 \
     #-resign movecount=3 score=400 \
+
+rm $sprt_dir/{master,new}
+git checkout master
