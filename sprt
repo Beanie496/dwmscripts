@@ -1,6 +1,6 @@
 #!/bin/dash
 date=$(date '+%Y-%m-%d_%H-%M-%S')
-sprt_dir=/home/Beanie/coding/sprt
+sprt_dir=$HOME/coding/sprt
 concurrency=8
 
 while getopts "c:" option
