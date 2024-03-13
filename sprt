@@ -23,19 +23,19 @@ cargo build --release
 mv $root_dir/target/release/crab $sprt_dir/new
 
 cutechess-cli \
-    -engine name=new proto=uci cmd=$sprt_dir/new \
-    -engine name=master proto=uci cmd=$sprt_dir/master \
-    -each tc=8+0.08 \
-    -variant standard \
-    -concurrency $concurrency \
-    -sprt elo0=0 elo1=5 alpha=0.05 beta=0.05 \
-    -games 2 -rounds 5000 -repeat 2 \
-    -ratinginterval 250 \
-    -openings file=$sprt_dir/UHO_XXL_2022_+110_+139.epd format=epd order=random \
-    -pgnout $sprt_dir/$date.pgn
-    #-debug \
-    #-draw movenumber=40 movecount=3 score=10 \
-    #-resign movecount=3 score=400 \
+	-engine name=new proto=uci cmd=$sprt_dir/new \
+	-engine name=master proto=uci cmd=$sprt_dir/master \
+	-each tc=8+0.08 \
+	-variant standard \
+	-concurrency $concurrency \
+	-sprt elo0=0 elo1=5 alpha=0.05 beta=0.05 \
+	-games 2 -rounds 5000 -repeat 2 \
+	-ratinginterval 250 \
+	-openings file=$sprt_dir/UHO_XXL_2022_+110_+139.epd format=epd order=random \
+	-pgnout $sprt_dir/$date.pgn
+	#-debug \
+	#-draw movenumber=40 movecount=3 score=10 \
+	#-resign movecount=3 score=400 \
 
 rm $sprt_dir/{master,new}
 git checkout master
