@@ -15,12 +15,12 @@ done
 shift $(($OPTIND - 1))
 
 cd $root_dir
-git checkout master
-cargo build --release
-mv -f $root_dir/target/release/crab $sprt_dir/master
 git checkout $1
 cargo build --release
 mv -f $root_dir/target/release/crab $sprt_dir/new
+git checkout master
+cargo build --release
+mv -f $root_dir/target/release/crab $sprt_dir/master
 
 cutechess-cli \
 	-engine name=new proto=uci cmd=$sprt_dir/new \
@@ -38,4 +38,3 @@ cutechess-cli \
 	#-resign movecount=3 score=400 \
 
 rm $sprt_dir/{master,new}
-git checkout master
