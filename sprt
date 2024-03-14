@@ -37,4 +37,5 @@ cutechess-cli \
 	#-draw movenumber=40 movecount=3 score=10 \
 	#-resign movecount=3 score=400 \
 
-rm $sprt_dir/{master,new}
+rm $sprt_dir/master
+rm $sprt_dir/new
