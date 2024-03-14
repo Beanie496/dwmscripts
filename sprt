@@ -17,10 +17,10 @@ shift $(($OPTIND - 1))
 cd $root_dir
 git checkout master
 cargo build --release
-mv $root_dir/target/release/crab $sprt_dir/master
+mv -f $root_dir/target/release/crab $sprt_dir/master
 git checkout $1
 cargo build --release
-mv $root_dir/target/release/crab $sprt_dir/new
+mv -f $root_dir/target/release/crab $sprt_dir/new
 
 cutechess-cli \
 	-engine name=new proto=uci cmd=$sprt_dir/new \
