@@ -1,30 +1,63 @@
 #!/bin/dash
 date=$(date '+%Y-%m-%d_%H-%M-%S')
 sprt_dir=$HOME/coding/sprt
-root_dir=.
 concurrency=8
+use_engine_names=0
+root_dir=.
 
-while getopts "c:p:" option
+help() {
+	echo "sprt - a simple wrapper over \`cutechess-cli\` to run SPRTs."
+	echo "Usage: sprt [-c <threads>] [-e] [-h] [-r <root_dir>]"
+	echo "            <git branch> | <engine 1> <engine 2>"
+	echo ""
+	echo "Options:"
+	echo "    -c <threads>"
+	echo "        Run <threads> games in parallel."
+	echo "    -e"
+	echo "        Compare <engine 1> against <engine 2>. Default is to compare"
+	echo "        <git branch> against master in <root_dir>."
+	echo "    -h"
+	echo "        Show this message."
+	echo "    -r <root_dir>"
+	echo "        Set the root directory for the two engines or git branch to"
+	echo "        this path. Default is the current directory."
+	exit 0
+}
+
+while getopts "c:ehp:" option
 do
 	case $option in
 		c) concurrency=$OPTARG ;;
+		e) use_engine_names=1 ;;
+		h) help ;;
 		p) root_dir=$OPTARG ;;
 	esac
 done
 
 shift $(($OPTIND - 1))
 
-cd $root_dir
-git checkout $1
-cargo build --release
-mv -f $root_dir/target/release/crab $sprt_dir/new
-git checkout master
-cargo build --release
-mv -f $root_dir/target/release/crab $sprt_dir/master
+if [ $use_engine_names -eq 1 ]; then
+	new=$1
+	new_cmd=$root_dir/$new
+	base=$2
+	base_cmd=$root_dir/$base
+else
+	new=$1
+	new_cmd=$sprt_dir/$new
+	base=master
+	base_cmd=$sprt_dir/$base
+	cd $root_dir
+	git checkout $1
+	cargo build --release
+	mv -f $root_dir/target/release/crab $sprt_dir/$new
+	git checkout master
+	cargo build --release
+	mv -f $root_dir/target/release/crab $sprt_dir/$base
+fi
 
 cutechess-cli \
-	-engine name=new proto=uci cmd=$sprt_dir/new \
-	-engine name=master proto=uci cmd=$sprt_dir/master \
+	-engine name=$new proto=uci cmd=$new_cmd \
+	-engine name=$base proto=uci cmd=$base_cmd \
 	-each tc=8+0.08 \
 	-variant standard \
 	-concurrency $concurrency \
@@ -37,5 +70,7 @@ cutechess-cli \
 	#-draw movenumber=40 movecount=3 score=10 \
 	#-resign movecount=3 score=400 \
 
-rm $sprt_dir/master
-rm $sprt_dir/new
+if [ $use_engine_names -eq 0 ]; then
+	rm $sprt_dir/$new
+	rm $sprt_dir/$base
+fi
