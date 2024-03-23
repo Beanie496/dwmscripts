@@ -4,6 +4,8 @@ sprt_dir=$HOME/coding/sprt
 concurrency=8
 use_engine_names=0
 root_dir=.
+elo0=0
+elo1=5
 
 help() {
 	echo "sprt - a simple wrapper over \`cutechess-cli\` to run SPRTs."
@@ -21,16 +23,22 @@ help() {
 	echo "    -r <root_dir>"
 	echo "        Set the root directory for the two engines or git branch to"
 	echo "        this path. Default is the current directory."
+	echo "    -s"
+	echo "        Use simplification bounds (elo0 = -5, elo1 = 0)."
 	exit 0
 }
 
-while getopts "c:ehp:" option
+while getopts "c:ehr:s" option
 do
 	case $option in
 		c) concurrency=$OPTARG ;;
 		e) use_engine_names=1 ;;
 		h) help ;;
-		p) root_dir=$OPTARG ;;
+		r) root_dir=$OPTARG ;;
+		s)
+			elo0=-5
+			elo1=0
+			;;
 	esac
 done
 
@@ -61,7 +69,7 @@ cutechess-cli \
 	-each tc=8+0.08 \
 	-variant standard \
 	-concurrency $concurrency \
-	-sprt elo0=0 elo1=5 alpha=0.05 beta=0.05 \
+	-sprt elo0=$elo0 elo1=$elo1 alpha=0.05 beta=0.05 \
 	-games 2 -rounds 5000 -repeat 2 \
 	-ratinginterval 250 \
 	-openings file=$sprt_dir/UHO_XXL_2022_+110_+139.epd format=epd order=random \
