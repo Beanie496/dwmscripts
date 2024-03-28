@@ -75,10 +75,10 @@ cutechess-cli \
 	-games 2 -rounds 5000 -repeat 2 \
 	-ratinginterval 250 \
 	-openings file=$sprt_dir/UHO_XXL_2022_+110_+139.epd format=epd order=random \
-	-pgnout $sprt_dir/$date.pgn
-	#-debug \
-	#-draw movenumber=40 movecount=3 score=10 \
-	#-resign movecount=3 score=400 \
+	-pgnout $sprt_dir/$date.pgn \
+	-resign movecount=3 score=300 \
+	-draw movenumber=40 movecount=3 score=10 \
+	#-debug
 
 if [ $use_engine_names -eq 0 ]; then
 	rm $sprt_dir/$new
