@@ -7,6 +7,26 @@ root_dir=.
 elo0=0
 elo1=5
 
+die() {
+	if [ -n $branch ]; then
+		git checkout $branch
+	fi
+
+	# don't delete the given engines if we're not using branches
+	if [ $use_engine_names -eq 1 ]; then
+		exit 0
+	fi
+
+	if [ -n $new -a -e $sprt_dir/$new ]; then
+		rm -f $sprt_dir/$new
+	fi
+	if [ -n $base -a -e $sprt_dir/$base ]; then
+		rm -f $sprt_dir/$base
+	fi
+
+	exit 0
+}
+
 help() {
 	echo "sprt - a simple wrapper over \`cutechess-cli\` to run SPRTs."
 	echo "Usage: sprt [-c <threads>] [-e] [-h] [-r <root_dir>]"
@@ -27,6 +47,9 @@ help() {
 	echo "        Use simplification bounds (elo0 = -5, elo1 = 0)."
 	exit 0
 }
+
+# exit cleanly when Ctrl+C'd
+trap die 2
 
 while getopts "c:ehr:s" option
 do
@@ -50,19 +73,18 @@ if [ $use_engine_names -eq 1 ]; then
 	base=$2
 	base_cmd=$root_dir/$base
 else
+	branch=$(git branch --show-current)
 	new=$1
 	new_cmd=$sprt_dir/$new
 	base=master
 	base_cmd=$sprt_dir/$base
 	cd $root_dir
-	branch=$(git branch --show-current)
 	git checkout $1
 	cargo build --release
 	mv -f $root_dir/target/release/crab $sprt_dir/$new
 	git checkout master
 	cargo build --release
 	mv -f $root_dir/target/release/crab $sprt_dir/$base
-	git checkout $branch
 fi
 
 cutechess-cli \
@@ -80,7 +102,4 @@ cutechess-cli \
 	-draw movenumber=40 movecount=3 score=10 \
 	#-debug
 
-if [ $use_engine_names -eq 0 ]; then
-	rm $sprt_dir/$new
-	rm $sprt_dir/$base
-fi
+die
