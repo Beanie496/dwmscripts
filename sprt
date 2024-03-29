@@ -1,11 +1,17 @@
 #!/bin/dash
 date=$(date '+%Y-%m-%d_%H-%M-%S')
 sprt_dir=$HOME/coding/sprt
-concurrency=8
 use_engine_names=0
 root_dir=.
+
+tc=8+0.08
+variant=standard
+concurrency=8
 elo0=0
 elo1=5
+rounds=5000
+rating_interval=250
+opening_file=$sprt_dir/UHO_XXL_2022_+110_+139.epd
 
 die() {
 	if [ -n $branch ]; then
@@ -90,16 +96,16 @@ fi
 cutechess-cli \
 	-engine name=$new proto=uci cmd=$new_cmd \
 	-engine name=$base proto=uci cmd=$base_cmd \
-	-each tc=8+0.08 \
-	-variant standard \
+	-each tc=$tc \
+	-variant $variant \
 	-concurrency $concurrency \
 	-sprt elo0=$elo0 elo1=$elo1 alpha=0.05 beta=0.05 \
-	-games 2 -rounds 5000 -repeat 2 \
-	-ratinginterval 250 \
-	-openings file=$sprt_dir/UHO_XXL_2022_+110_+139.epd format=epd order=random \
+	-games 2 -rounds $rounds -repeat 2 \
+	-ratinginterval $rating_interval \
+	-openings file=$opening_file format=epd order=random \
 	-pgnout $sprt_dir/$date.pgn \
 	-resign movecount=3 score=300 \
-	-draw movenumber=40 movecount=3 score=10 \
+	-draw movenumber=40 movecount=3 score=10
 	#-debug
 
 die
