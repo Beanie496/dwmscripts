@@ -9,6 +9,7 @@ variant=standard
 concurrency=8
 elo0=0
 elo1=5
+sprt_cmd="-sprt elo0=$elo0 elo1=$elo1 alpha=0.05 beta=0.05"
 rounds=5000
 rating_interval=250
 opening_file=$sprt_dir/UHO_XXL_2022_+110_+139.epd
@@ -51,13 +52,16 @@ help() {
 	echo "        this path. Default is the current directory."
 	echo "    -s"
 	echo "        Use simplification bounds (elo0 = -5, elo1 = 0)."
+	echo "    -t <rounds>"
+	echo "        Don't run an SPRT; just run a fixed-round test. Each round"
+	echo "        has two games so divide the desired rounds by 2."
 	exit 0
 }
 
 # exit cleanly when Ctrl+C'd
 trap die 2
 
-while getopts "c:ehr:s" option
+while getopts "c:ehr:st:" option
 do
 	case $option in
 		c) concurrency=$OPTARG ;;
@@ -67,6 +71,10 @@ do
 		s)
 			elo0=-5
 			elo1=0
+			;;
+		t)
+			rounds=$OPTARG
+			sprt_cmd=
 			;;
 	esac
 done
@@ -99,7 +107,7 @@ cutechess-cli \
 	-each tc=$tc \
 	-variant $variant \
 	-concurrency $concurrency \
-	-sprt elo0=$elo0 elo1=$elo1 alpha=0.05 beta=0.05 \
+	$sprt_cmd \
 	-games 2 -rounds $rounds -repeat 2 \
 	-ratinginterval $rating_interval \
 	-openings file=$opening_file format=epd order=random \
