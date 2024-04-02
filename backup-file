@@ -3,4 +3,5 @@ for file in "$@"; do
 	files="$files'$file', "
 done
 rsync -a --delete --filter=". $HOME/backup/filter" "$@"
+sync
 notify-send -u low "backup-file" "In $(pwd): backed up ${files%??}."
