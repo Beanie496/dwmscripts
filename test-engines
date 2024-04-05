@@ -1,0 +1,62 @@
+#!/bin/dash
+date=$(date '+%Y-%m-%d_%H-%M-%S')
+root_dir=.
+default_concurrency=8
+default_rounds=2500
+default_rating_interval=250
+
+tc=8+0.08
+concurrency=$default_concurrency
+rounds=$default_rounds
+rating_interval=$default_rating_interval
+opening_file=$HOME/coding/repositories/engines/test.d/UHO_XXL_2022_+110_+139.epd
+
+# print help
+help() {
+	echo "sprt - a simple wrapper over \`cutechess-cli\` to run SPRTs."
+	echo "Usage: sprt [-p <root_dir>] [-c <threads>] [-r <rounds>]"
+	echo "            [-i <interval>] [-h] <engine 1> <engine 2>"
+	echo ""
+	echo "Options:"
+	echo "    -p <root_dir>"
+	echo "        Set the root directory for the two engines. Default is the"
+	echo "        current directory."
+	echo "    -c <threads>"
+	echo "        Run <threads> games in parallel. Default $default_concurrency."
+	echo "    -r <rounds>"
+	echo "        Run <rounds> rounds. Each round has two games so divide the"
+	echo "        desired rounds by 2."
+	echo "    -i <interval>"
+	echo "        Set the rating interval to <interval>. Default $default_rating_interval."
+	echo "    -h"
+	echo "        Show this message."
+	exit 0
+}
+
+while getopts "p:c:r:i:h" option
+do
+	case $option in
+		p) root_dir=$OPTARG ;;
+		c) concurrency=$OPTARG ;;
+		r) rounds=$OPTARG ;;
+		i) rating_interval=$OPTARG ;;
+		h) help ;;
+	esac
+done
+
+shift $(($OPTIND - 1))
+cd $root_dir
+
+cutechess-cli \
+	-engine cmd=$1 proto=uci \
+	-engine cmd=$2 proto=uci \
+	-each tc=$tc \
+	-variant standard \
+	-concurrency $concurrency \
+	-games 2 -rounds $rounds -repeat 2 \
+	-ratinginterval $rating_interval \
+	-openings file=$opening_file format=epd order=random \
+	-pgnout $root_dir/$date.pgn \
+	-resign movecount=3 score=300 \
+	-draw movenumber=40 movecount=3 score=10
+	#-debug
