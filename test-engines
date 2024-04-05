@@ -57,6 +57,6 @@ cutechess-cli \
 	-ratinginterval $rating_interval \
 	-openings file=$opening_file format=epd order=random \
 	-pgnout $root_dir/$date.pgn \
-	-resign movecount=3 score=300 \
+	-resign movecount=3 score=400 \
 	-draw movenumber=40 movecount=3 score=10
 	#-debug
