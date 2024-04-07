@@ -1,0 +1,21 @@
+#!/bin/zsh
+
+die() {
+	touch openbench.exit
+    wait
+    rm openbench.exit
+}
+
+trap die 2
+
+get-password -u Beanie
+password=$(xclip -o -sel clipboard)
+# make sure the password immediately gets cleared
+echo | xclip -sel clipboard
+
+cd $HOME/coding/repositories/OpenBench/Client
+[ -f /opt/miniconda3/etc/profile.d/conda.sh ] && source /opt/miniconda3/etc/profile.d/conda.sh
+conda activate openbench
+python client.py -U Beanie -P $password -S http://localhost:8000 -T 8 -N 1 &
+wait
+conda deactivate
