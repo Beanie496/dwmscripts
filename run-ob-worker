@@ -1,12 +1,22 @@
 #!/bin/zsh
 
+threads=8
+
 die() {
 	touch openbench.exit
     wait
     rm openbench.exit
+    exit 0
 }
 
 trap die 2
+
+while getopts "T:" option
+do
+    case $option in
+        T) threads=$OPTARG ;;
+    esac
+done
 
 get-password -u Beanie
 password=$(xclip -o -sel clipboard)
@@ -16,6 +26,6 @@ echo | xclip -sel clipboard
 cd $HOME/coding/repositories/OpenBench/Client
 [ -f /opt/miniconda3/etc/profile.d/conda.sh ] && source /opt/miniconda3/etc/profile.d/conda.sh
 conda activate openbench
-python client.py -U Beanie -P $password -S http://localhost:8000 -T 8 -N 1 &
+python client.py -U Beanie -P $password -S http://localhost:8000 -T $threads -N 1 &
 wait
 conda deactivate
