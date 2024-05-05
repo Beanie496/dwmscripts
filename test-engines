@@ -1,9 +1,10 @@
 #!/bin/dash
+name=$(basename $0)
 date=$(date '+%Y-%m-%d_%H-%M-%S')
 root_dir=.
 default_concurrency=8
 default_rounds=2500
-default_rating_interval=250
+default_rating_interval=25
 
 tc=8+0.08
 concurrency=$default_concurrency
@@ -13,8 +14,8 @@ opening_file=$HOME/coding/repositories/engines/test.d/UHO_XXL_2022_+110_+139.epd
 
 # print help
 help() {
-	echo "sprt - a simple wrapper over \`cutechess-cli\` to run SPRTs."
-	echo "Usage: sprt [-p <root_dir>] [-c <threads>] [-r <rounds>]"
+	echo "$name - a simple wrapper over \`fast-chess\` to run fixed-game tests."
+	echo "Usage: $name [-p <root_dir>] [-c <threads>] [-r <rounds>]"
 	echo "            [-i <interval>] [-h] <engine 1> <engine 2>"
 	echo ""
 	echo "Options:"
@@ -47,13 +48,13 @@ done
 shift $(($OPTIND - 1))
 cd $root_dir
 
-cutechess-cli \
-	-engine cmd=$1 proto=uci \
-	-engine cmd=$2 proto=uci \
-	-each tc=$tc \
+fast-chess \
+	-engine cmd=$1 proto=uci name=$1 \
+	-engine cmd=$2 proto=uci name=$2 \
+	-each tc=$tc option.hash=32 option.threads=1 \
 	-variant standard \
 	-concurrency $concurrency \
-	-games 2 -rounds $rounds -repeat 2 \
+	-repeat -rounds $rounds \
 	-ratinginterval $rating_interval \
 	-openings file=$opening_file format=epd order=random \
 	-pgnout $root_dir/$date.pgn \
