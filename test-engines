@@ -10,7 +10,7 @@ tc=8+0.08
 concurrency=$default_concurrency
 rounds=$default_rounds
 rating_interval=$default_rating_interval
-opening_file=$HOME/coding/repositories/engines/test.d/UHO_XXL_2022_+110_+139.epd
+opening_file=$HOME/test.d/UHO_XXL_2022_+110_+139.epd
 
 # print help
 help() {
