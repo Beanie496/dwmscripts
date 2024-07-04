@@ -26,7 +26,7 @@ help() {
 	echo "        Run <threads> games in parallel. Default $default_concurrency."
 	echo "    -r <rounds>"
 	echo "        Run <rounds> rounds. Each round has two games so divide the"
-	echo "        desired rounds by 2."
+	echo "        desired rounds by 2. Default $default_rounds."
 	echo "    -i <interval>"
 	echo "        Set the rating interval to <interval>. Default $default_rating_interval."
 	echo "    -h"
