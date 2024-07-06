@@ -1,0 +1,4 @@
+#!/bin/dash
+
+cd $HOME/coding/repositories/OpenBench/Client
+touch openbench.exit

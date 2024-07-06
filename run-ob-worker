@@ -2,15 +2,6 @@
 
 threads=6
 
-die() {
-	touch openbench.exit
-    wait
-    rm openbench.exit
-    exit 0
-}
-
-trap die 2
-
 while getopts "T:" option
 do
     case $option in
@@ -29,3 +20,4 @@ conda activate openbench
 python client.py -U Beanie -P $password -S http://localhost:8000 -T $threads -N 1 &
 wait
 conda deactivate
+rm openbench.exit
