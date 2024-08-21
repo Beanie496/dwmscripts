@@ -51,7 +51,7 @@ cd $root_dir
 fast-chess \
 	-engine cmd=$1 proto=uci name=$1 \
 	-engine cmd=$2 proto=uci name=$2 \
-	-each tc=$tc option.hash=32 option.threads=1 \
+	-each tc=$tc option.hash=32 option.threads=1 option."Move Overhead"=10 \
 	-variant standard \
 	-concurrency $concurrency \
 	-repeat -rounds $rounds \
