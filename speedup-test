@@ -49,8 +49,8 @@ for ((k=1; k<=${n_runs}; k++)); do
 done
 
 # text processing to extract nps values
-cat crab_base0.txt | grep ms | awk '{ print $3 }' > crab_base1.txt
-cat crab_test0.txt | grep ms | awk '{ print $3 }' > crab_test1.txt
+grep ms crab_base0.txt | awk '{ print $3 }' > crab_base1.txt
+grep ms crab_test0.txt | awk '{ print $3 }' > crab_test1.txt
 
 for ((k=1; k<=${n_runs}; k++)); do
     echo ${k} >> crab_temp0.txt
