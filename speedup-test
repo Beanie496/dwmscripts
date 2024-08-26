@@ -5,21 +5,16 @@ bench
 EOF
 }
 
-if [[ ${#} -ne 4 ]]; then
+if [[ ${#} -ne 3 ]]; then
 cat << EOF
-usage: ${0} ./crab_base ./crab_test depth n_runs
-fast bench:
-${0} ./crab_base ./crab_test 13 10
-slow bench:
-${0} ./crab_base ./crab_test 20 10
+usage: ${0} ./crab_base ./crab_test n_runs
 EOF
 exit 1
 fi
 
 crab_base=${1}
 crab_test=${2}
-depth=${3}
-n_runs=${4}
+n_runs=${3}
 
 # preload of CPU/cache/memory
 printf "preload CPU"
@@ -56,13 +51,13 @@ for ((k=1; k<=${n_runs}; k++)); do
     echo ${k} >> crab_temp0.txt
 done
 
-printf "\rrun   crab_base   crab_test      diff\n"
-paste crab_temp0.txt crab_base1.txt crab_test1.txt | awk '{printf "%3d  %8d  %8d  %8+d\n", $1, $2, $3, $3-$2}'
+printf "\rrun  crab_base  crab_test     diff\n"
+paste crab_temp0.txt crab_base1.txt crab_test1.txt | awk '{printf "%3d  %8d   %8d  %8+d\n", $1, $2, $3, $3-$2}'
 paste crab_base1.txt crab_test1.txt | awk '{printf "%d\t%d\t%d\n", $1, $2, $2-$1}' > crab_temp0.txt
 
 # compute: sample mean, 1.96 * std of sample mean (95% of samples), speedup
 # std of sample mean = sqrt(NR/(NR-1)) * (std population) / sqrt(NR)
-cat crab_temp0.txt | awk '{sum1 += $1 ; sumq1 += $1**2 ;sum2 += $2 ; sumq2 += $2**2 ;sum3 += $3 ; sumq3 += $3**2 } END {printf "\ncrab_base = %8d +/- %6d (95%)\ncrab_test = %8d +/- %6d (95%)\ndiff    = %8d +/- %6d (95%)\nspeedup = %.5f% +/- %.3f% (95%)\n\n", sum1/NR , 1.96 * sqrt(sumq1/NR - (sum1/NR)**2)/sqrt(NR-1) , sum2/NR , 1.96 * sqrt(sumq2/NR - (sum2/NR)**2)/sqrt(NR-1) , sum3/NR  , 1.96 * sqrt(sumq3/NR - (sum3/NR)**2)/sqrt(NR-1) , 100*(sum2 - sum1)/sum1 , 100 * (1.96 * sqrt(sumq3/NR - (sum3/NR)**2)/sqrt(NR-1)) / (sum1/NR) }'
+cat crab_temp0.txt | awk '{sum1 += $1 ; sumq1 += $1**2 ;sum2 += $2 ; sumq2 += $2**2 ;sum3 += $3 ; sumq3 += $3**2 } END {printf "\ncrab_base = %8d ± %6d (95%)\ncrab_test = %8d ± %6d (95%)\ndiff      = %8d ± %6d (95%)\nspeedup   = %.4f% ± %.3f% (95%)\n\n", sum1/NR , 1.96 * sqrt(sumq1/NR - (sum1/NR)**2)/sqrt(NR-1) , sum2/NR , 1.96 * sqrt(sumq2/NR - (sum2/NR)**2)/sqrt(NR-1) , sum3/NR  , 1.96 * sqrt(sumq3/NR - (sum3/NR)**2)/sqrt(NR-1) , 100*(sum2 - sum1)/sum1 , 100 * (1.96 * sqrt(sumq3/NR - (sum3/NR)**2)/sqrt(NR-1)) / (sum1/NR) }'
 
 # remove temporary files
 rm -f crab_base0.txt crab_test0.txt crab_temp0.txt crab_base1.txt crab_test1.txt
