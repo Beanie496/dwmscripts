@@ -1,7 +1,12 @@
 #!/bin/dash
+for dest; do :; done
+
 for file in "$@"; do
-	files="$files'$file', "
+	if [ "$file" != "$dest" ]; then
+		rsync -a --delete --filter=". $HOME/backup/filter" "$file" "$dest"
+		sync
+		msg="In $(pwd): backed up and synced $file to $dest"
+		notify-send -u low "backup-file" "$msg"
+		echo $msg
+	fi
 done
-rsync -a --delete --filter=". $HOME/backup/filter" "$@"
-sync
-notify-send -u low "backup-file" "In $(pwd): backed up ${files%??}."
