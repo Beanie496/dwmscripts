@@ -9,10 +9,8 @@ do
     esac
 done
 
-get-password -u Beanie
+PASSWORD_STORE_CLIP_TIME=1 pass -c OpenBench/normal
 password=$(xclip -o -sel clipboard)
-# make sure the password immediately gets cleared
-echo | xclip -sel clipboard
 
 cd $HOME/coding/repositories/OpenBench/Client
 [ -f /opt/miniconda3/etc/profile.d/conda.sh ] && source /opt/miniconda3/etc/profile.d/conda.sh
