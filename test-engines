@@ -48,10 +48,10 @@ done
 shift $(($OPTIND - 1))
 cd $root_dir
 
-fast-chess \
-	-engine cmd=$1 proto=uci name=$1 \
-	-engine cmd=$2 proto=uci name=$2 \
-	-each tc=$tc option.Hash=32 option.Threads=1 option."Move Overhead"=16 \
+fastchess \
+	-engine cmd=$1 name=$1 \
+	-engine cmd=$2 name=$2 \
+	-each proto=uci tc=$tc option.Hash=32 option.Threads=1 option."Move Overhead"=16 \
 	-variant standard \
 	-concurrency $concurrency \
 	-repeat -rounds $rounds \
