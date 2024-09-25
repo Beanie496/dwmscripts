@@ -14,7 +14,10 @@ normal=$(($nearlyfull - 1))
 
 case $status in
 	"Full")
-		notify-send -u low -t 5000 "Battery full" "Battery level at 100%"
+		if [ "$(cat "$cache")" -lt 100 ]; then
+			notify-send -u low -t 5000 "Battery full" "Battery level at 100%"
+			echo 100 > "$cache"
+		fi
 		symbol="⚡"
 		;;
 	"Charging")
